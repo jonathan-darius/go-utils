@@ -96,7 +96,9 @@ func LogErrorConsumer(errMsg string) {
 	log := logrus.New()
 	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(os.Getenv("ELASTICSEARCH_HOST")))
 	if err != nil {
-		log.Panic(err)
+		log.Println(err)
+		log.Println(errMsg)
+		return
 	}
 
 	hook, err := elogrus.NewAsyncElasticHook(client, os.Getenv("ELASTICSEARCH_HOST"), logrus.DebugLevel, "service-consumer-logger")
