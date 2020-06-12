@@ -11,7 +11,7 @@ import (
 
 	"github.com/forkyid/go-utils/logger"
 	uuid "github.com/forkyid/go-utils/uuid"
-	"github.com/forkyid/go-utils/rest/constants"
+	responseMsg "github.com/forkyid/go-utils/rest/response"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
 )
@@ -43,7 +43,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 		log.Panicln("response cannot contain more than one message")
 	}
 	if len(msg) == 0 {
-		if defaultMessage := constants.Response[status]; defaultMessage == nil {
+		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
 			log.Panicln("default message for status code " + strconv.Itoa(status) + " not found")
 		} else {
 			msg = []string{defaultMessage.(string)}
@@ -68,7 +68,7 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 		log.Panicln("response cannot contain more than one message")
 	}
 	if len(msg) == 0 {
-		if defaultMessage := constants.Response[status]; defaultMessage == nil {
+		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
 			log.Panicln("default message for status code " + strconv.Itoa(status) + " not found")
 		} else {
 			msg = []string{defaultMessage.(string)}
@@ -96,7 +96,7 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 		log.Panicln("response cannot contain more than one message")
 	}
 	if len(msg) == 0 {
-		if defaultMessage := constants.Response[status]; defaultMessage == nil {
+		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
 			log.Panicln("default message for status code " + strconv.Itoa(status) + " not found")
 		} else {
 			msg = []string{defaultMessage.(string)}
