@@ -94,7 +94,7 @@ func (c *Config) GetUrl(img *Image) string {
 	mac.Write([]byte(path))
 	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 
-	return fmt.Sprintf("%s/%s%s \n", c.Host, signature, path)
+	return fmt.Sprintf("%s/%s%s", c.Host, signature, path)
 }
 
 func (c *Config) GetS3Url(s3 *S3) string {
