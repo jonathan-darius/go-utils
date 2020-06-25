@@ -15,7 +15,6 @@ import (
 	"github.com/forkyid/go-utils/logger"
 	responseMsg "github.com/forkyid/go-utils/rest/response"
 	uuid "github.com/forkyid/go-utils/uuid"
-	"github.com/forkyid/go-utils/validation"
 	"github.com/gin-gonic/gin"
 	"github.com/globalsign/mgo/bson"
 	"github.com/go-playground/validator"
@@ -40,6 +39,20 @@ func (resp ResponseResult) Log(message string) {
 	logger.LogError(resp.Context, resp.UUID, message)
 }
 
+// ErrorDetails contains '|' separated details for each field
+type ErrorDetails map[string]string
+
+// Validator validator
+var Validator = validator.New()
+
+// Add adds details to key separated by '|'
+func (details *ErrorDetails) Add(key, val string) {
+	if (*details)[key] != "" {
+		(*details)[key] += " | "
+	}
+	(*details)[key] += val
+}
+
 // ResponseData params
 // @context: *gin.Context
 // status: int
@@ -53,7 +66,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
 			log.Println("default message for status code " + strconv.Itoa(status) + " not found")
 			log.Println("proceeding with empty message...")
-			msg = []string[]{""}
+			msg = []string{""}
 		} else {
 			msg = []string{defaultMessage.(string)}
 		}
@@ -132,7 +145,7 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 		}
 	} else if det, ok := detail.(map[string]string); ok {
 		response.Detail = det
-	} else if det, ok := detail.(validation.ErrorDetails); ok {
+	} else if det, ok := detail.(ErrorDetails); ok {
 		response.Detail = det
 	} else if det, ok := detail.(string); ok {
 		response.Detail = map[string]string{}
