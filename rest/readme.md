@@ -152,4 +152,37 @@ Raw uint representation of the id. 0 when scanned from NULL or unmarshaled from 
 AES encrypted representation. "" when scanned from NULL. JSON is directly unmarshalled into this field, therefore this field can contain an invalid representation of the ID.
 
 `Valid`:
-When set to `false`, .Value() returns `nil` (NULL value for sql). Is `false` when unmarshalling from invalid encrypted id or empty string. Is `false` when scanning from NULL. Is `false` when constructed from invalid encrypted id string.
+When set to `false`, `.Value()` returns `nil` (NULL value for sql). Is `false` when unmarshalling from invalid encrypted id or empty string. Is `false` when scanning from NULL. Is `false` when constructed from invalid encrypted id string.
+
+### Example 1
+
+```json
+{
+    "id", "jR"
+}
+```
+
+```go
+foo := struct {
+    ID restid.ID `json:"id"`
+}
+json.Unmarshal(data, &foo)
+```
+
+### Example 2
+
+```go
+query.Scan(&foo)
+```
+
+### Example 3
+
+```go
+query.Raw('... (?) ...', foo)
+```
+
+### Example 4
+
+```go
+j, _ := json.Marshal(foo)
+```
