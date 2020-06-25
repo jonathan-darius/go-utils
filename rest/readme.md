@@ -158,7 +158,7 @@ When set to `false`, `.Value()` returns `nil` (NULL value for sql). Is `false` w
 
 ```json
 {
-    "id", "jR"
+    "id": "jR"
 }
 ```
 
