@@ -72,7 +72,6 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 		}
 	}
 
-
 	response := Response{
 		Body:    payload,
 		Message: msg[0],
@@ -126,12 +125,11 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
 			log.Println("default message for status code " + strconv.Itoa(status) + " not found")
 			log.Println("proceeding with empty message...")
-			msg = []string[]{""}
+			msg = []string{""}
 		} else {
 			msg = []string{defaultMessage.(string)}
 		}
 	}
-
 
 	response := Response{
 		Error:   uuid.GetUUID(),
