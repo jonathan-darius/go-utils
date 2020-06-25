@@ -95,7 +95,7 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
 			log.Println("default message for status code " + strconv.Itoa(status) + " not found")
 			log.Println("proceeding with empty message...")
-			msg = []string[]{""}
+			msg = []string{""}
 		} else {
 			msg = []string{defaultMessage.(string)}
 		}
