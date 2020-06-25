@@ -178,7 +178,7 @@ query.Scan(&foo)
 ### Example 3
 
 ```go
-query.Raw('... (?) ...', foo)
+query.Raw("... (?) ...", foo)
 ```
 
 ### Example 4
