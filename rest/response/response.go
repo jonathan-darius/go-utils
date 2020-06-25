@@ -5,10 +5,12 @@ import (
 	"net/http"
 )
 
+// custom error messages
 const (
 	CounterExceeded = `You have reached the limit for today. `
 )
 
+// Response default response messages for http status coes
 var Response = []interface{}{
 	http.StatusOK:                  "Success",
 	http.StatusCreated:             "Successfully Inserted Data",
@@ -24,6 +26,7 @@ var Response = []interface{}{
 	http.StatusConflict:            "Resource Conflict",
 }
 
+// PleaseWait generates message for given duration
 func PleaseWait(msg string, timePassed, duration int) string {
 	timeEstimation := msg + "Please wait for"
 	if timePassed < 60 {

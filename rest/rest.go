@@ -1,18 +1,23 @@
 package rest
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/forkyid/go-utils/logger"
-	uuid "github.com/forkyid/go-utils/uuid"
 	responseMsg "github.com/forkyid/go-utils/rest/response"
+	uuid "github.com/forkyid/go-utils/uuid"
+	"github.com/forkyid/go-utils/validation"
 	"github.com/gin-gonic/gin"
+	"github.com/globalsign/mgo/bson"
 	"github.com/go-playground/validator"
 )
 
@@ -30,6 +35,7 @@ type ResponseResult struct {
 	UUID    string
 }
 
+// Log uses current response context to log
 func (resp ResponseResult) Log(message string) {
 	logger.LogError(resp.Context, resp.UUID, message)
 }
@@ -115,6 +121,8 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 		}
 	} else if det, ok := detail.(map[string]string); ok {
 		response.Detail = det
+	} else if det, ok := detail.(validation.ErrorDetails); ok {
+		response.Detail = det
 	} else if det, ok := detail.(string); ok {
 		response.Detail = map[string]string{}
 		response.Detail["error"] = det
@@ -124,6 +132,7 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 	return ResponseResult{context, response.Error}
 }
 
+// PostPayload crates post request
 func PostPayload(url, payload string, headers map[string]string) ([]byte, int) {
 	req, _ := http.NewRequest("POST", url, strings.NewReader(payload))
 
@@ -144,6 +153,7 @@ func PostPayload(url, payload string, headers map[string]string) ([]byte, int) {
 	return body, resp.StatusCode
 }
 
+// GetPayload creates get request
 func GetPayload(url string, headers map[string]string, reqBody io.Reader, wg *sync.WaitGroup, responseBody *[][]byte, responseCode *[]int) ([]byte, int) {
 	req, _ := http.NewRequest("GET", url, reqBody)
 
@@ -176,4 +186,39 @@ func GetPayload(url string, headers map[string]string, reqBody io.Reader, wg *sy
 	}
 
 	return body, resp.StatusCode
+}
+
+// MultipartForm creates multipart payload
+func MultipartForm(fileKey string, files *[][]byte, params *map[string]string, multiParams *map[string][]string) (io.Reader, string) {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	for _, j := range *files {
+		part, _ := writer.CreateFormFile(fileKey, bson.NewObjectId().Hex())
+		part.Write(j)
+	}
+	for k, v := range *multiParams {
+		for _, j := range v {
+			writer.WriteField(k, j)
+		}
+	}
+	for k, v := range *params {
+		writer.WriteField(k, v)
+	}
+	err := writer.Close()
+	if err != nil {
+		return nil, ""
+	}
+
+	return body, writer.FormDataContentType()
+}
+
+// GetData unwraps "body" object
+func GetData(jsonBody []byte) (json.RawMessage, error) {
+	body := map[string]json.RawMessage{}
+	err := json.Unmarshal(jsonBody, &body)
+	if err != nil {
+		return nil, err
+	}
+	data := body["body"]
+	return data, err
 }
