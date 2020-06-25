@@ -46,15 +46,19 @@ func (resp ResponseResult) Log(message string) {
 // msg: string
 func ResponseData(context *gin.Context, status int, payload interface{}, msg ...string) ResponseResult {
 	if len(msg) > 1 {
-		log.Panicln("response cannot contain more than one message")
+		log.Println("response cannot contain more than one message")
+		log.Println("proceeding with first message only...")
 	}
 	if len(msg) == 0 {
 		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
-			log.Panicln("default message for status code " + strconv.Itoa(status) + " not found")
+			log.Println("default message for status code " + strconv.Itoa(status) + " not found")
+			log.Println("proceeding with empty message...")
+			msg = []string[]{""}
 		} else {
 			msg = []string{defaultMessage.(string)}
 		}
 	}
+
 
 	response := Response{
 		Body:    payload,
@@ -71,11 +75,14 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 // msg: string
 func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseResult {
 	if len(msg) > 1 {
-		log.Panicln("response cannot contain more than one message")
+		log.Println("response cannot contain more than one message")
+		log.Println("proceeding with first message only...")
 	}
 	if len(msg) == 0 {
 		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
-			log.Panicln("default message for status code " + strconv.Itoa(status) + " not found")
+			log.Println("default message for status code " + strconv.Itoa(status) + " not found")
+			log.Println("proceeding with empty message...")
+			msg = []string[]{""}
 		} else {
 			msg = []string{defaultMessage.(string)}
 		}
@@ -99,15 +106,19 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 // detail: array
 func ResponseError(context *gin.Context, status int, detail interface{}, msg ...string) ResponseResult {
 	if len(msg) > 1 {
-		log.Panicln("response cannot contain more than one message")
+		log.Println("response cannot contain more than one message")
+		log.Println("proceeding with first message only...")
 	}
 	if len(msg) == 0 {
 		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
-			log.Panicln("default message for status code " + strconv.Itoa(status) + " not found")
+			log.Println("default message for status code " + strconv.Itoa(status) + " not found")
+			log.Println("proceeding with empty message...")
+			msg = []string[]{""}
 		} else {
 			msg = []string{defaultMessage.(string)}
 		}
 	}
+
 
 	response := Response{
 		Error:   uuid.GetUUID(),

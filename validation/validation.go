@@ -146,5 +146,5 @@ func Validate(data interface{}) (details *ErrorDetails, code int) {
 		}
 	}
 
-	return details, code
+	return nil, code
 }

@@ -23,20 +23,30 @@ func Encrypt(id int) string {
 // Decrypt Function
 func Decrypt(data string) int {
 	d, err := h.DecodeWithError(data)
-	if err != nil {
+	if err != nil || len(d) < 1 {
 		return -1
 	}
 	return d[0]
 }
 
-//DecryptBulk Function
+// DecryptBulk Function
 func DecryptBulk(data []string) (ret []int, err error) {
-	for _, d := range data {
-		decrypted := Decrypt(d)
+	ret = make([]int, len(data))
+	for i := range data {
+		decrypted := Decrypt(data[i])
 		if decrypted <= 0 {
 			return nil, fmt.Errorf("Decrypt failed")
 		}
-		ret = append(ret, decrypted)
+		ret[i] = decrypted
 	}
 	return ret, nil
+}
+
+// EncryptBulk Function
+func EncryptBulk(data []int) (ret []string) {
+	ret = make([]string, len(data))
+	for i := range data {
+		ret[i] = Encrypt(data[i])
+	}
+	return ret
 }
