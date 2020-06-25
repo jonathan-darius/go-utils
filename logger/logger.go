@@ -15,9 +15,9 @@ import (
 	"gopkg.in/sohlich/elogrus.v3"
 )
 
+// Init initialize logger
 func Init() {
-	var Environment = os.Getenv("ENV")
-	if Environment == "production" {
+	if os.Getenv("ENV") == "production" {
 		logrus.SetFormatter(&logrus.JSONFormatter{})
 		logrus.SetOutput(os.Stdout)
 	} else {
@@ -50,6 +50,7 @@ func newLoggingResponseWriter(w gin.ResponseWriter) *loggingResponseWriter {
 	return &loggingResponseWriter{w, w.Status()}
 }
 
+// LogError for api
 func LogError(c *gin.Context, uuid, errMsg string) {
 	w := c.Writer
 	r := c.Request
@@ -92,6 +93,7 @@ func LogError(c *gin.Context, uuid, errMsg string) {
 	}).Error(errMsg)
 }
 
+// LogErrorConsumer for consumer
 func LogErrorConsumer(errMsg string) {
 	log := logrus.New()
 	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(os.Getenv("ELASTICSEARCH_HOST")))
@@ -103,7 +105,8 @@ func LogErrorConsumer(errMsg string) {
 
 	hook, err := elogrus.NewAsyncElasticHook(client, os.Getenv("ELASTICSEARCH_HOST"), logrus.DebugLevel, "service-consumer-logger")
 	if err != nil {
-		log.Panic(err)
+		log.Println(err)
+		log.Println(errMsg)
 	}
 	log.Hooks.Add(hook)
 
