@@ -135,13 +135,13 @@ func Validate(data interface{}) (details *ErrorDetails, code int) {
 		code = http.StatusBadRequest
 	}
 
-	if code != http.StatusBadRequest {
-		idDet, idCode := validateID(data)
-		if idCode != http.StatusOK {
+	idDet, idCode := validateID(data)
+	if idCode != http.StatusOK {
+		if code != http.StatusBadRequest {
 			code = idCode
-			for field, det := range *idDet {
-				details.Add(field, det)
-			}
+		}
+		for field, det := range *idDet {
+			details.Add(field, det)
 		}
 	}
 
