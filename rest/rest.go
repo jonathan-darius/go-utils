@@ -143,8 +143,8 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 		}
 	} else if det, ok := detail.(map[string]string); ok {
 		response.Detail = det
-	} else if det, ok := detail.(ErrorDetails); ok {
-		response.Detail = det
+	} else if det, ok := detail.(*ErrorDetails); ok {
+		response.Detail = *det
 	} else if det, ok := detail.(string); ok {
 		response.Detail = map[string]string{}
 		response.Detail["error"] = det

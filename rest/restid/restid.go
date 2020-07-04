@@ -29,6 +29,7 @@ func (id *ID) UnmarshalJSON(j []byte) error {
 	}
 	decrypted := aes.Decrypt(id.Encrypted)
 	id.Raw = uint(decrypted)
+	id.Valid = true
 	if decrypted < 0 {
 		id.Raw = 0
 		id.Valid = false
@@ -77,6 +78,7 @@ func IDFromEncrypted(encrypted string) (id ID) {
 	id.Valid = true
 	decrypted := aes.Decrypt(encrypted)
 	id.Raw = uint(decrypted)
+	id.Valid = true
 	if decrypted < 0 {
 		id.Raw = 0
 		id.Valid = false
