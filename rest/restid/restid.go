@@ -86,3 +86,21 @@ func IDFromEncrypted(encrypted string) (id ID) {
 	}
 	return id
 }
+
+// ArrayToRaw return raw id array
+func ArrayToRaw(ids *[]ID) *[]uint {
+	raws := make([]uint, len(*ids))
+	for i := range *ids {
+		raws[i] = (*ids)[i].Raw
+	}
+	return &raws
+}
+
+// ArrayToEncrypted return encrypted id array
+func ArrayToEncrypted(ids *[]ID) *[]string {
+	encypteds := make([]string, len(*ids))
+	for i := range *ids {
+		encypteds[i] = (*ids)[i].Encrypted
+	}
+	return &encypteds
+}
