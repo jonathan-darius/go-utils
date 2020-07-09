@@ -3,7 +3,7 @@ module github.com/forkyid/go-utils/rest
 go 1.14
 
 require (
-	github.com/forkyid/go-utils/crypto v0.0.0-20200625102923-c5abf0c3987b
+	github.com/forkyid/go-utils/aes v0.0.0-20200709005308-7cc142cd7dc0
 	github.com/forkyid/go-utils/logger v0.0.0-20200624181326-5632e7419463
 	github.com/forkyid/go-utils/uuid v0.0.0-20200624181326-5632e7419463
 	github.com/fortytw2/leaktest v1.3.0 // indirect
