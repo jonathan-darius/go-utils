@@ -1,4 +1,4 @@
-module github.com/forkyid/go-utils/crypto
+module github.com/forkyid/go-utils/aes
 
 go 1.14
 
