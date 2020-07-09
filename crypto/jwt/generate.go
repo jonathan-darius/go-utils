@@ -9,7 +9,6 @@ import (
 	"github.com/forkyid/go-utils/rest/restid"
 )
 
-var applicationName = AppName
 var accessExpirationDuration = time.Duration(AccessTokenDurationMinute) * time.Minute
 var refreshExpirationDuration = time.Duration(RefreshTokenDurationHour) * time.Hour
 var jwtSigningMethod = jwt.SigningMethodHS256
@@ -19,7 +18,10 @@ var jwtSigningMethod = jwt.SigningMethodHS256
 // @username: string
 // return error, string
 func GenerateAccessToken(memberID, roleID restid.ID, username string) (string, error) {
-
+	applicationName := os.Getenv("APPLICATION_NAME")
+	if applicationName == "" {
+		applicationName = AppName
+	}
 	claims := Claims{
 		StandardClaims: jwt.StandardClaims{
 			Issuer:    applicationName,
@@ -46,7 +48,10 @@ func GenerateAccessToken(memberID, roleID restid.ID, username string) (string, e
 // @username: string
 // return error, string
 func GenerateRefreshToken(memberID, roleID restid.ID, username string) (string, error) {
-
+	applicationName := os.Getenv("APPLICATION_NAME")
+	if applicationName == "" {
+		applicationName = AppName
+	}
 	claims := Claims{
 		StandardClaims: jwt.StandardClaims{
 			Issuer:    applicationName,
