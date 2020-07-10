@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/forkyid/go-utils/logger"
 	responseMsg "github.com/forkyid/go-utils/rest/response"
@@ -155,8 +154,8 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 }
 
 // PostPayload crates post request
-func PostPayload(url, payload string, headers map[string]string) ([]byte, int) {
-	req, _ := http.NewRequest("POST", url, strings.NewReader(payload))
+func PostPayload(url string, headers map[string]string, body io.Reader) ([]byte, int) {
+	req, _ := http.NewRequest(http.MethodPost, url, body)
 
 	if headers != nil {
 		for k, v := range headers {
@@ -171,41 +170,33 @@ func PostPayload(url, payload string, headers map[string]string) ([]byte, int) {
 		return nil, 0
 	}
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-	return body, resp.StatusCode
+	ret, _ := ioutil.ReadAll(resp.Body)
+	return ret, resp.StatusCode
 }
 
 // GetPayload creates get request
-func GetPayload(url string, headers map[string]string, reqBody io.Reader, wg *sync.WaitGroup, responseBody *[][]byte, responseCode *[]int) ([]byte, int) {
-	req, _ := http.NewRequest("GET", url, reqBody)
-
+func GetPayload(url string, headers map[string]string, query map[string]string) ([]byte, int) {
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
 	if headers != nil {
 		for k, v := range headers {
 			req.Header.Set(k, v)
 		}
 	}
 
+	q := req.URL.Query()
+	for k, v := range query {
+		q.Add(k, v)
+	}
+	req.URL.RawQuery = q.Encode()
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("ERROR: [GET]", err.Error())
 		return nil, -1
 	}
 
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
-
-	if responseBody != nil {
-		*responseBody = append(*responseBody, body)
-	}
-
-	if responseCode != nil {
-		*responseCode = append(*responseCode, resp.StatusCode)
-	}
-
-	if wg != nil {
-		wg.Done()
-	}
 
 	return body, resp.StatusCode
 }
