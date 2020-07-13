@@ -80,17 +80,22 @@ func LogError(c *gin.Context, uuid, errMsg string) {
 		payload[p.Key] = p.Value
 	}
 
-	log.WithFields(logrus.Fields{
-		"Key":           uuid,
-		"ServiceName":   os.Getenv("SERVICE_NAME"),
-		"Request":       r.RequestURI,
-		"Method":        r.Method,
-		"IP":            realIP(r),
-		"RemoteAddress": r.Header.Get("X-Request-Id"),
-		"Payload":       payload,
-		"StatusCode":    lw.statusCode,
-		"ResponseTime":  latency,
-	}).Error(errMsg)
+	fields := logrus.Fields{
+		"Key":          uuid,
+		"ServiceName":  os.Getenv("SERVICE_NAME"),
+		"Payload":      payload,
+		"StatusCode":   lw.statusCode,
+		"ResponseTime": latency,
+	}
+
+	if r != nil {
+		fields["Request"] = r.RequestURI
+		fields["Method"] = r.Method
+		fields["IP"] = realIP(r)
+		fields["RemoteAddress"] = r.Header.Get("X-Request-Id")
+	}
+
+	log.WithFields(fields).Error(errMsg)
 }
 
 // LogErrorConsumer for consumer
