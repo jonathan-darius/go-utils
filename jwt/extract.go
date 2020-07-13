@@ -35,6 +35,27 @@ func ExtractClaims(tokenStr string) (jwt.MapClaims, bool) {
 	return claims, true
 }
 
+// ExtractRefreshClaims params
+// @tokenStr: string
+// return jwt.MapClaims, error
+func ExtractRefreshClaims(tokenStr string) (jwt.MapClaims, error) {
+	hmacSecretString := os.Getenv("JWT_REFRESH_SIGNATURE_KEY")
+	hmacSecret := []byte(hmacSecretString)
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		return hmacSecret, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, err
+	} else {
+		return nil, err
+	}
+}
+
 // ExtractID extracts only the id from JWT
 func ExtractID(ah string) (int, error) {
 	ts := strings.Replace(ah, "Bearer ", "", -1)
@@ -56,6 +77,29 @@ func ExtractClient(ah string) (*Claims, error) {
 
 	claimsMap, claimRes := ExtractClaims(ts)
 	if !claimRes {
+		return nil, fmt.Errorf("Failed on claiming token")
+	}
+
+	j, err := json.Marshal(&claimsMap)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(j, &claims)
+	if err != nil {
+		return nil, err
+	}
+
+	return &claims, nil
+}
+
+// ExtractRefresh extracts only the id from JWT
+func ExtractRefresh(ah string) (*Claims, error) {
+	ts := strings.Replace(ah, "Bearer ", "", -1)
+	claims := Claims{}
+
+	claimsMap, claimErr := ExtractRefreshClaims(ts)
+	if claimErr != nil {
 		return nil, fmt.Errorf("Failed on claiming token")
 	}
 
