@@ -61,7 +61,7 @@ func (c *Config) GetUrl(img *Image) string {
 	encodedURL := base64.RawURLEncoding.EncodeToString([]byte(img.Url))
 
 	resize := "fill"
-	width := 300
+	width := 0
 	height := 0
 	gravity := "no"
 	enlarge := 1
