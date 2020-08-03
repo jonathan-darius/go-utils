@@ -244,3 +244,24 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 	data := body["body"]
 	return data, err
 }
+
+// PatchPayload create patch request
+func PatchPayload(url, payload string, headers map[string]string) ([]byte, int) {
+	req, _ := http.NewRequest("PATCH", url, strings.NewReader(payload))
+
+	if headers != nil {
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("ERROR: [PATCH] " + url + " " + err.Error())
+		return nil, 0
+	}
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	return body, resp.StatusCode
+}
