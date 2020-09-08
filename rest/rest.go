@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/forkyid/go-utils/logger"
 	responseMsg "github.com/forkyid/go-utils/rest/response"
@@ -32,6 +31,15 @@ type Response struct {
 type ResponseResult struct {
 	Context *gin.Context
 	UUID    string
+}
+
+// Request types
+type Request struct {
+	URL     string
+	Method  string
+	Headers map[string]string
+	Body    io.Reader
+	Queries map[string]string
 }
 
 // Log uses current response context to log
@@ -154,62 +162,6 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 	return ResponseResult{context, response.Error}
 }
 
-// PostPayload crates post request
-func PostPayload(url, payload string, headers map[string]string) ([]byte, int) {
-	req, _ := http.NewRequest("POST", url, strings.NewReader(payload))
-
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println("ERROR: [POST] " + url + " " + err.Error())
-		return nil, 0
-	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-	return body, resp.StatusCode
-}
-
-// GetPayload creates get request
-func GetPayload(url string, headers map[string]string, reqBody io.Reader, wg *sync.WaitGroup, responseBody *[][]byte, responseCode *[]int) ([]byte, int) {
-	req, _ := http.NewRequest("GET", url, reqBody)
-
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println("ERROR: [GET]", err.Error())
-		return nil, -1
-	}
-
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	if responseBody != nil {
-		*responseBody = append(*responseBody, body)
-	}
-
-	if responseCode != nil {
-		*responseCode = append(*responseCode, resp.StatusCode)
-	}
-
-	if wg != nil {
-		wg.Done()
-	}
-
-	return body, resp.StatusCode
-}
-
 // MultipartForm creates multipart payload
 func MultipartForm(fileKey string, files *[][]byte, params *map[string]string, multiParams *map[string][]string) (io.Reader, string) {
 	body := new(bytes.Buffer)
@@ -245,23 +197,52 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 	return data, err
 }
 
-// PatchPayload create patch request
-func PatchPayload(url, payload string, headers map[string]string) ([]byte, int) {
-	req, _ := http.NewRequest("PATCH", url, strings.NewReader(payload))
+// Send func
+// return []byte, int
+func (request Request) Send() ([]byte, int) {
+	if !validMethod(request.Method) {
+		log.Println("[WARN] Unsupported method supplied, use one of constants provided by http package (e.g. http.MethodGet)")
+		return nil, -1
+	}
 
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
+	req, _ := http.NewRequest(request.Method, request.URL, request.Body)
+
+	for k, v := range request.Headers {
+		req.Header.Set(k, v)
+	}
+
+	if request.Method == http.MethodGet {
+		q := req.URL.Query()
+		for k, v := range request.Headers {
+			q.Add(k, v)
 		}
+		req.URL.RawQuery = q.Encode()
 	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("ERROR: [PATCH] " + url + " " + err.Error())
-		return nil, 0
+		log.Println("ERROR: ["+request.Method+"]", err.Error())
+		return nil, -1
 	}
+
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
+
 	return body, resp.StatusCode
+}
+
+// validMethod params
+// @method: string
+// return bool
+func validMethod(method string) bool {
+	return method == http.MethodConnect ||
+		method == http.MethodDelete ||
+		method == http.MethodGet ||
+		method == http.MethodHead ||
+		method == http.MethodOptions ||
+		method == http.MethodPatch ||
+		method == http.MethodPost ||
+		method == http.MethodPut ||
+		method == http.MethodTrace
 }
