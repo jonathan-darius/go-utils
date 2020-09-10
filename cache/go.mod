@@ -1,4 +1,4 @@
-module github.com/forkyid/go-utils/rest
+module github.com/forkyid/go-utils/cache
 
 go 1.14
 
