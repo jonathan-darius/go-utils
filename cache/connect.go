@@ -26,6 +26,10 @@ func isCacheConnected() bool {
 	if redisClient == nil {
 		ConnectCache()
 	}
+	if redisClient.Ping().Val() == "PONG" {
+		return true
+	}
+	ConnectCache()
 	return redisClient.Ping().Val() == "PONG"
 }
 
