@@ -22,7 +22,11 @@ func Get(key string, seconds ...int) (interface{}, error) {
 	var data interface{}
 
 	resp := client.Get(key)
-	if resp.Err() != nil && resp.Err() != redis.Nil {
+	if resp.Err() == redis.Nil {
+		return nil, nil
+	}
+
+	if resp.Err() != nil {
 		return nil, fmt.Errorf("get: redis get failed: %s: %s", os.Getenv("REDIS_HOST"), resp.Err().Error())
 	}
 
