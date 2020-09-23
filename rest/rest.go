@@ -33,6 +33,15 @@ type ResponseResult struct {
 	UUID    string
 }
 
+// Request types
+type Request struct {
+	URL     string
+	Method  string
+	Headers map[string]string
+	Body    io.Reader
+	Queries map[string]string
+}
+
 // Log uses current response context to log
 func (resp ResponseResult) Log(message string) {
 	logger.LogError(resp.Context, resp.UUID, message)
@@ -153,54 +162,6 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 	return ResponseResult{context, response.Error}
 }
 
-// PostPayload crates post request
-func PostPayload(url string, headers map[string]string, body io.Reader) ([]byte, int) {
-	req, _ := http.NewRequest(http.MethodPost, url, body)
-
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println("ERROR: [POST] " + url + " " + err.Error())
-		return nil, 0
-	}
-	defer resp.Body.Close()
-	ret, _ := ioutil.ReadAll(resp.Body)
-	return ret, resp.StatusCode
-}
-
-// GetPayload creates get request
-func GetPayload(url string, headers map[string]string, query map[string]string) ([]byte, int) {
-	req, _ := http.NewRequest(http.MethodGet, url, nil)
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
-	}
-
-	q := req.URL.Query()
-	for k, v := range query {
-		q.Add(k, v)
-	}
-	req.URL.RawQuery = q.Encode()
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, -1
-	}
-
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	return body, resp.StatusCode
-}
-
 // MultipartForm creates multipart payload
 func MultipartForm(fileKey string, files *[][]byte, params *map[string]string, multiParams *map[string][]string) (io.Reader, string) {
 	body := new(bytes.Buffer)
@@ -234,4 +195,54 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 	}
 	data := body["body"]
 	return data, err
+}
+
+// Send func
+// return []byte, int
+func (request Request) Send() ([]byte, int) {
+	if !validMethod(request.Method) {
+		log.Println("[WARN] Unsupported method supplied, use one of constants provided by http package (e.g. http.MethodGet)")
+		return nil, -1
+	}
+
+	req, _ := http.NewRequest(request.Method, request.URL, request.Body)
+
+	for k, v := range request.Headers {
+		req.Header.Set(k, v)
+	}
+
+	if request.Method == http.MethodGet {
+		q := req.URL.Query()
+		for k, v := range request.Headers {
+			q.Add(k, v)
+		}
+		req.URL.RawQuery = q.Encode()
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("ERROR: ["+request.Method+"]", err.Error())
+		return nil, -1
+	}
+
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	return body, resp.StatusCode
+}
+
+// validMethod params
+// @method: string
+// return bool
+func validMethod(method string) bool {
+	return method == http.MethodConnect ||
+		method == http.MethodDelete ||
+		method == http.MethodGet ||
+		method == http.MethodHead ||
+		method == http.MethodOptions ||
+		method == http.MethodPatch ||
+		method == http.MethodPost ||
+		method == http.MethodPut ||
+		method == http.MethodTrace
 }
