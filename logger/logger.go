@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -129,14 +131,30 @@ func LogErrorConsumer(errMsg string) {
 }
 
 // LogUserActivity for CMS user activity
-func LogUserActivity(eventName, before, after, auth string) {
+func LogUserActivity(eventName, before, after, auth string) error {
+	payload := map[string]string{
+		"name":   eventName,
+		"before": before,
+		"after":  after,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
 	request := rest.Request{
 		URL:    fmt.Sprintf("%v/cms/member/v1/activities", os.Getenv("API_ORIGIN_URL")),
 		Method: http.MethodPost,
 		Headers: map[string]string{
 			"Authorization": auth,
 		},
-		Body: strings.NewReader(fmt.Sprintf(`{"name": "%v", "before": "%v", "after": "%v"}`, eventName, before, after)),
+		Body: bytes.NewReader(body),
 	}
-	request.Send()
+	_, statusCode := request.Send()
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("status code not OK")
+	}
+
+	return nil
 }
