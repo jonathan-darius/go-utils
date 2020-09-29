@@ -213,7 +213,7 @@ func (request Request) Send() ([]byte, int) {
 
 	if request.Method == http.MethodGet {
 		q := req.URL.Query()
-		for k, v := range request.Headers {
+		for k, v := range request.Queries {
 			q.Add(k, v)
 		}
 		req.URL.RawQuery = q.Encode()

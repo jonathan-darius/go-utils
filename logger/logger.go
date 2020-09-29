@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/forkyid/go-utils/rest"
 	"github.com/forkyid/go-utils/uuid"
 	"github.com/gin-gonic/gin"
 	"github.com/olivere/elastic"
@@ -124,4 +126,17 @@ func LogErrorConsumer(errMsg string) {
 		"ServiceName":  os.Getenv("SERVICE_NAME"),
 		"ResponseTime": latency,
 	}).Error(errMsg)
+}
+
+// LogUserActivity for CMS user activity
+func LogUserActivity(eventName, before, after, auth string) {
+	request := rest.Request{
+		URL:    fmt.Sprintf("%v/cms/member/v1/activities", os.Getenv("API_ORIGIN_URL")),
+		Method: http.MethodPost,
+		Headers: map[string]string{
+			"Authorization": auth,
+		},
+		Body: strings.NewReader(fmt.Sprintf(`{"name": "%v", "before": "%v", "after": "%v"}`, eventName, before, after)),
+	}
+	request.Send()
 }
