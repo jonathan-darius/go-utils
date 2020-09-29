@@ -11,7 +11,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/forkyid/go-utils/rest"
 	"github.com/forkyid/go-utils/uuid"
 	"github.com/gin-gonic/gin"
 	"github.com/olivere/elastic"
@@ -138,21 +137,30 @@ func LogUserActivity(eventName, before, after, auth string) error {
 		"after":  after,
 	}
 
-	body, err := json.Marshal(payload)
+	payloadMarshal, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	request := rest.Request{
-		URL:    fmt.Sprintf("%v/cms/member/v1/activities", os.Getenv("API_ORIGIN_URL")),
-		Method: http.MethodPost,
-		Headers: map[string]string{
-			"Authorization": auth,
-		},
-		Body: bytes.NewReader(body),
+	url := fmt.Sprintf("%v/cms/member/v1/activities", os.Getenv("API_ORIGIN_URL"))
+	method := http.MethodPost
+	headers := map[string]string{
+		"Authorization": auth,
 	}
-	_, statusCode := request.Send()
-	if statusCode != http.StatusOK {
+	body := bytes.NewReader(payloadMarshal)
+
+	req, _ := http.NewRequest(method, url, body)
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error on inserting User Activities")
+	}
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("status code not OK")
 	}
 
