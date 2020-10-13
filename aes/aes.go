@@ -7,21 +7,22 @@ import (
 	"github.com/speps/go-hashids"
 )
 
-var passphrase = os.Getenv("AES_KEY")
 var hd = hashids.NewData()
-var h, _ = hashids.NewWithData(hd)
 
 // Encrypt Function
 func Encrypt(id int) string {
-	hd.Salt = passphrase
-	hd.MinLength = 30
-	hd = hashids.NewData()
+	hd.Salt = os.Getenv("AES_KEY")
+	hd.MinLength = 32
+	h, _ := hashids.NewWithData(hd)
 	encoded, _ := h.Encode([]int{id})
 	return encoded
 }
 
 // Decrypt Function
 func Decrypt(data string) int {
+	hd.Salt = os.Getenv("AES_KEY")
+	hd.MinLength = 32
+	h, _ := hashids.NewWithData(hd)
 	d, err := h.DecodeWithError(data)
 	if err != nil || len(d) < 1 {
 		return -1
