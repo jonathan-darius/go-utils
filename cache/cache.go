@@ -226,10 +226,15 @@ func getKey(data interface{}) (key string, err error) {
 // return string, error
 func Key(data interface{}, prefixes ...string) (key string, err error) {
 	v := reflect.ValueOf(data)
+	serviceName := os.Getenv("SERVICE_NAME")
+
+	if serviceName == "" {
+		return "", fmt.Errorf("redis key: SERVICE_NAME env variable cannot be empty")
+	}
 
 	// for non struct based key
 	if data == nil {
-		key = os.Getenv("SERVICE_NAME")
+		key = serviceName
 
 		for _, p := range prefixes {
 			key = fmt.Sprintf("%v#%v", key, p)
@@ -246,7 +251,7 @@ func Key(data interface{}, prefixes ...string) (key string, err error) {
 		v = v.Elem()
 	}
 
-	key = fmt.Sprintf("%v#%v", os.Getenv("SERVICE_NAME"), v.Type().Name())
+	key = fmt.Sprintf("%v#%v", serviceName, v.Type().Name())
 
 	for _, p := range prefixes {
 		key = fmt.Sprintf("%v#%v", key, p)
