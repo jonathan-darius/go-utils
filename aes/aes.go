@@ -5,9 +5,11 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/joho/godotenv"
 	"github.com/speps/go-hashids"
 )
 
+var _ = godotenv.Load()
 var hd = hashids.NewData()
 var salt = os.Getenv("AES_KEY")
 var minLength, _ = strconv.Atoi(os.Getenv("AES_MIN_LENGTH"))
