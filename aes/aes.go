@@ -3,16 +3,19 @@ package aes
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/speps/go-hashids"
 )
 
 var hd = hashids.NewData()
+var salt = os.Getenv("AES_KEY")
+var minLength, _ = strconv.Atoi(os.Getenv("AES_MIN_LENGTH"))
 
 // Encrypt Function
 func Encrypt(id int) string {
-	hd.Salt = os.Getenv("AES_KEY")
-	hd.MinLength = 32
+	hd.Salt = salt
+	hd.MinLength = minLength
 	h, _ := hashids.NewWithData(hd)
 	encoded, _ := h.Encode([]int{id})
 	return encoded
@@ -20,8 +23,8 @@ func Encrypt(id int) string {
 
 // Decrypt Function
 func Decrypt(data string) int {
-	hd.Salt = os.Getenv("AES_KEY")
-	hd.MinLength = 32
+	hd.Salt = salt
+	hd.MinLength = minLength
 	h, _ := hashids.NewWithData(hd)
 	d, err := h.DecodeWithError(data)
 	if err != nil || len(d) < 1 {
