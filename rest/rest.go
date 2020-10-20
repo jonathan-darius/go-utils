@@ -200,7 +200,7 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 // Send func
 // return []byte, int
 func (request Request) Send() ([]byte, int) {
-	if !validMethod(request.Method) {
+	if !ValidMethod(request.Method) {
 		log.Println("[WARN] Unsupported method supplied, use one of constants provided by http package (e.g. http.MethodGet)")
 		return nil, -1
 	}
@@ -232,10 +232,10 @@ func (request Request) Send() ([]byte, int) {
 	return body, resp.StatusCode
 }
 
-// validMethod params
+// ValidMethod params
 // @method: string
 // return bool
-func validMethod(method string) bool {
+func ValidMethod(method string) bool {
 	return method == http.MethodConnect ||
 		method == http.MethodDelete ||
 		method == http.MethodGet ||
