@@ -163,19 +163,19 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 }
 
 // MultipartForm creates multipart payload
-func MultipartForm(fileKey string, files *[][]byte, params *map[string]string, multiParams *map[string][]string) (io.Reader, string) {
+func MultipartForm(fileKey string, files [][]byte, params map[string]string, multiParams map[string][]string) (io.Reader, string) {
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	for _, j := range *files {
+	for _, j := range files {
 		part, _ := writer.CreateFormFile(fileKey, bson.NewObjectId().Hex())
 		part.Write(j)
 	}
-	for k, v := range *multiParams {
+	for k, v := range multiParams {
 		for _, j := range v {
 			writer.WriteField(k, j)
 		}
 	}
-	for k, v := range *params {
+	for k, v := range params {
 		writer.WriteField(k, v)
 	}
 	err := writer.Close()
