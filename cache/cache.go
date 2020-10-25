@@ -3,6 +3,7 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -185,9 +186,10 @@ func getKey(data interface{}) (key string, err error) {
 		if len(cacheTag) == 0 {
 			continue
 		}
+		tags := strings.Split(cacheTag, ",")
 
 		// check empty value
-		if reflect.DeepEqual(field.Interface(), reflect.Zero(fieldT.Type).Interface()) {
+		if tags[0] != "optional" && reflect.DeepEqual(field.Interface(), reflect.Zero(fieldT.Type).Interface()) {
 			return "", fmt.Errorf("redis key: data cannot be empty")
 		}
 
@@ -196,7 +198,6 @@ func getKey(data interface{}) (key string, err error) {
 		if name == "" || name == "-" {
 			name = strings.ToLower(fieldT.Name)
 		}
-		tags := strings.Split(cacheTag, ",")
 
 		// pointer dereference
 		if field.Kind() == reflect.Ptr {
@@ -206,7 +207,7 @@ func getKey(data interface{}) (key string, err error) {
 		value := field.Interface()
 
 		// if nested struct
-		if tags[0] == "dive" {
+		if tags[0] != "nodive" {
 			if field.Kind() == reflect.Struct {
 				value, err = getKey(value)
 				if err != nil {
@@ -224,12 +225,13 @@ func getKey(data interface{}) (key string, err error) {
 // @data: interface{}
 // @prefixes: ...string
 // return string, error
-func Key(data interface{}, prefixes ...string) (key string, err error) {
+func Key(data interface{}, prefixes ...string) (key string) {
 	v := reflect.ValueOf(data)
 	serviceName := os.Getenv("SERVICE_NAME")
 
 	if serviceName == "" {
-		return "", fmt.Errorf("redis key: SERVICE_NAME env variable cannot be empty")
+		log.Println("redis key: SERVICE_NAME env variable should not be empty")
+		return ""
 	}
 
 	// for non struct based key
@@ -239,11 +241,12 @@ func Key(data interface{}, prefixes ...string) (key string, err error) {
 		for _, p := range prefixes {
 			key = fmt.Sprintf("%v#%v", key, p)
 		}
-		return key, nil
+		return key
 	}
 
 	if reflect.DeepEqual(data, reflect.Zero(reflect.TypeOf(data)).Interface()) {
-		return "", fmt.Errorf("redis key: data cannot be empty")
+		log.Println("redis key: data should not be empty")
+		return ""
 	}
 
 	// pointer dereference
@@ -258,7 +261,11 @@ func Key(data interface{}, prefixes ...string) (key string, err error) {
 	}
 
 	dataKey, err := getKey(data)
+	if err != nil {
+		log.Println(err.Error())
+		return ""
+	}
 	key += dataKey
 
-	return key, err
+	return key
 }
