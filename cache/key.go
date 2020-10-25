@@ -36,7 +36,10 @@ func getKey(data interface{}) (key string, err error) {
 		tags := strings.Split(cacheTag, ",")
 
 		// check empty value
-		if tags[0] != "optional" && reflect.DeepEqual(field.Interface(), reflect.Zero(fieldT.Type).Interface()) {
+		if reflect.DeepEqual(field.Interface(), reflect.Zero(fieldT.Type).Interface()) {
+			if tags[0] == "optional" {
+				continue
+			}
 			return "", fmt.Errorf("redis key: data cannot be empty")
 		}
 
