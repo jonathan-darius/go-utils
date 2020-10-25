@@ -21,7 +21,8 @@ func initialize() {
 	if hd != nil {
 		return
 	}
-	hashids.NewData()
+
+	hd = hashids.NewData()
 	salt = os.Getenv("AES_KEY")
 	minLengthStr := os.Getenv("AES_MIN_LENGTH")
 
