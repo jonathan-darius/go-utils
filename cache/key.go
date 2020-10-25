@@ -90,6 +90,10 @@ func key(serviceName string, data interface{}, prefixes ...string) (key string, 
 		v = v.Elem()
 	}
 
+	if v.Kind() != reflect.Struct {
+		return "", fmt.Errorf("redis key: data should be a struct")
+	}
+
 	key = fmt.Sprintf("%v#%v", serviceName, v.Type().Name())
 
 	for _, p := range prefixes {
