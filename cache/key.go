@@ -30,17 +30,23 @@ func getKey(data interface{}) (key string, err error) {
 
 		// check tag exist
 		cacheTag := fieldT.Tag.Get("cache")
-		if len(cacheTag) == 0 {
-			continue
-		}
 		tags := strings.Split(cacheTag, ",")
 
-		// check empty value
-		if reflect.DeepEqual(field.Interface(), reflect.Zero(fieldT.Type).Interface()) {
-			if tags[0] == "optional" {
+		isDive := false
+
+		if field.Kind() == reflect.Struct {
+			isDive = (tags[0] != "nodive")
+
+			// if not dive and no key
+			if !isDive && len(tags) < 2 {
 				continue
+			} else {
+				tags = tags[1:]
 			}
-			return "", fmt.Errorf("redis key: data cannot be empty")
+		}
+
+		if !isDive && len(cacheTag) == 0 {
+			continue
 		}
 
 		// get json tag, else name
@@ -54,17 +60,21 @@ func getKey(data interface{}) (key string, err error) {
 			field = v.Elem()
 		}
 
+		// check empty value
+		if reflect.DeepEqual(field.Interface(), reflect.Zero(fieldT.Type).Interface()) {
+			if isDive || tags[0] == "optional" {
+				continue
+			}
+			return "", fmt.Errorf("redis key: data cannot be empty")
+		}
+
 		value := field.Interface()
 
 		// if nested struct
-		if field.Kind() == reflect.Struct {
-			if tags[0] != "nodive" {
-				value, err = getKey(value)
-				if err != nil {
-					return "", err
-				}
-			} else if tags[1] != "key" {
-				continue
+		if isDive {
+			value, err = getKey(value)
+			if err != nil {
+				return "", err
 			}
 		}
 
