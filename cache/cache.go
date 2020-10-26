@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
-	"strings"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -158,107 +156,4 @@ func TTL(key string) (float64, error) {
 		return 0, fmt.Errorf("ttl: set duration failed: %s: %s", os.Getenv("REDIS_HOST"), err.Error())
 	}
 	return res, nil
-}
-
-func getKey(data interface{}) (key string, err error) {
-	v := reflect.ValueOf(data)
-
-	// check for nil and pointer dereference
-	if data == nil {
-		return
-	}
-	if v.Kind() == reflect.Ptr {
-		if v.IsNil() {
-			return
-		}
-		v = v.Elem()
-	}
-
-	t := v.Type()
-
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		fieldT := t.Field(i)
-
-		// check tag exist
-		cacheTag := fieldT.Tag.Get("cache")
-		if len(cacheTag) == 0 {
-			continue
-		}
-
-		// check empty value
-		if reflect.DeepEqual(field.Interface(), reflect.Zero(fieldT.Type).Interface()) {
-			return "", fmt.Errorf("redis key: data cannot be empty")
-		}
-
-		// get json tag, else name
-		name := strings.SplitN(fieldT.Tag.Get("json"), ",", 2)[0]
-		if name == "" || name == "-" {
-			name = strings.ToLower(fieldT.Name)
-		}
-		tags := strings.Split(cacheTag, ",")
-
-		// pointer dereference
-		if field.Kind() == reflect.Ptr {
-			field = v.Elem()
-		}
-
-		value := field.Interface()
-
-		// if nested struct
-		if tags[0] == "dive" {
-			if field.Kind() == reflect.Struct {
-				value, err = getKey(value)
-				if err != nil {
-					return "", err
-				}
-			}
-		}
-
-		key = fmt.Sprintf("%v#%v:%v", key, name, value)
-	}
-	return key, nil
-}
-
-// Key params
-// @data: interface{}
-// @prefixes: ...string
-// return string, error
-func Key(data interface{}, prefixes ...string) (key string, err error) {
-	v := reflect.ValueOf(data)
-	serviceName := os.Getenv("SERVICE_NAME")
-
-	if serviceName == "" {
-		return "", fmt.Errorf("redis key: SERVICE_NAME env variable cannot be empty")
-	}
-
-	// for non struct based key
-	if data == nil {
-		key = serviceName
-
-		for _, p := range prefixes {
-			key = fmt.Sprintf("%v#%v", key, p)
-		}
-		return key, nil
-	}
-
-	if reflect.DeepEqual(data, reflect.Zero(reflect.TypeOf(data)).Interface()) {
-		return "", fmt.Errorf("redis key: data cannot be empty")
-	}
-
-	// pointer dereference
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	key = fmt.Sprintf("%v#%v", serviceName, v.Type().Name())
-
-	for _, p := range prefixes {
-		key = fmt.Sprintf("%v#%v", key, p)
-	}
-
-	dataKey, err := getKey(data)
-	key += dataKey
-
-	return key, err
 }
