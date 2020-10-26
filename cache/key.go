@@ -57,12 +57,14 @@ func getKey(data interface{}) (key string, err error) {
 		value := field.Interface()
 
 		// if nested struct
-		if tags[0] != "nodive" {
-			if field.Kind() == reflect.Struct {
+		if field.Kind() == reflect.Struct {
+			if tags[0] != "nodive" {
 				value, err = getKey(value)
 				if err != nil {
 					return "", err
 				}
+			} else if tags[1] != "key" {
+				continue
 			}
 		}
 
