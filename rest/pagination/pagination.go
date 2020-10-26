@@ -2,8 +2,8 @@ package pagination
 
 // Pagination scheme
 type Pagination struct {
-	Limit  int `form:"limit" cache:"key"`
-	Page   int `form:"page" cache:"key"`
+	Limit  int `form:"limit" cache:"optional"`
+	Page   int `form:"page" cache:"optional"`
 	Offset int
 }
 
