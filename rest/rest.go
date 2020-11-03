@@ -163,19 +163,19 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 }
 
 // MultipartForm creates multipart payload
-func MultipartForm(fileKey string, files *[][]byte, params *map[string]string, multiParams *map[string][]string) (io.Reader, string) {
+func MultipartForm(fileKey string, files [][]byte, params map[string]string, multiParams map[string][]string) (io.Reader, string) {
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	for _, j := range *files {
+	for _, j := range files {
 		part, _ := writer.CreateFormFile(fileKey, bson.NewObjectId().Hex())
 		part.Write(j)
 	}
-	for k, v := range *multiParams {
+	for k, v := range multiParams {
 		for _, j := range v {
 			writer.WriteField(k, j)
 		}
 	}
-	for k, v := range *params {
+	for k, v := range params {
 		writer.WriteField(k, v)
 	}
 	err := writer.Close()
@@ -200,7 +200,7 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 // Send func
 // return []byte, int
 func (request Request) Send() ([]byte, int) {
-	if !validMethod(request.Method) {
+	if !ValidMethod(request.Method) {
 		log.Println("[WARN] Unsupported method supplied, use one of constants provided by http package (e.g. http.MethodGet)")
 		return nil, -1
 	}
@@ -232,10 +232,10 @@ func (request Request) Send() ([]byte, int) {
 	return body, resp.StatusCode
 }
 
-// validMethod params
+// ValidMethod params
 // @method: string
 // return bool
-func validMethod(method string) bool {
+func ValidMethod(method string) bool {
 	return method == http.MethodConnect ||
 		method == http.MethodDelete ||
 		method == http.MethodGet ||

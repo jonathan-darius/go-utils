@@ -12,7 +12,7 @@ import (
 // ID type for database/json id handling
 type ID struct {
 	Raw       uint
-	Encrypted string
+	Encrypted string `cache:"key"`
 	Valid     bool
 }
 
