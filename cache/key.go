@@ -65,7 +65,7 @@ func getKey(data interface{}) (key string, err error) {
 			if isDive || tags[0] == "optional" {
 				continue
 			}
-			return "", fmt.Errorf("redis key: data cannot be empty")
+			return "", fmt.Errorf("redis key: data cannot be empty: %v", name)
 		}
 
 		value := field.Interface()

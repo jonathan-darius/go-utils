@@ -35,6 +35,19 @@ func Authorization(ctx *gin.Context) {
 		return
 	}
 
+	suspended, err := isSuspended(aes.Encrypt(id))
+	if err != nil {
+		rest.ResponseMessage(ctx, http.StatusInternalServerError).
+			Log("auth: check suspend: " + err.Error())
+		ctx.Abort()
+		return
+	}
+	if suspended {
+		rest.ResponseMessage(ctx, http.StatusForbidden, "Suspend")
+		ctx.Abort()
+		return
+	}
+
 	loggedIn, err := isLoggedIn(id, ctx.GetHeader("X-Unique-ID"))
 	if err != nil {
 		rest.ResponseMessage(ctx, http.StatusInternalServerError).
@@ -43,14 +56,13 @@ func Authorization(ctx *gin.Context) {
 		return
 	}
 
-	if loggedIn {
+	if !loggedIn {
 		rest.ResponseMessage(ctx, http.StatusUnauthorized)
 		ctx.Abort()
 		return
 	}
 
 	ctx.Next()
-
 }
 
 type Ban struct {
@@ -88,7 +100,10 @@ func isBanned(memberID int, bearer string) (bool, error) {
 	}
 	_, code := req.Send()
 	if code != http.StatusOK {
-		return false, fmt.Errorf("get blocked: status not 200")
+		if code != http.StatusNotFound {
+			return false, fmt.Errorf("get blocked: status code unexpected: %d", code)
+		}
+		return false, nil
 	}
 
 	err = cache.SetJSON(redisKey, "", 600)
@@ -99,9 +114,21 @@ func isBanned(memberID int, bearer string) (bool, error) {
 	return true, nil
 }
 
+type Suspend struct {
+	ID string `cache:"key"`
+}
+
+func isSuspended(memberID string) (bool, error) {
+	suspended, err := cache.IsCacheExists(
+		cache.ExternalKey("global", Suspend{
+			ID: memberID,
+		}))
+	return suspended, errors.Wrap(err, "redis: check exists")
+}
+
 type WhiteList struct {
 	ID       string `cache:"key"`
-	DeviceID string `cache:"key"`
+	DeviceID string `cache:"optional"`
 }
 
 func isLoggedIn(memberID int, deviceID string) (bool, error) {
