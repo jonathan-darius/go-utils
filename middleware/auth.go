@@ -128,7 +128,7 @@ func isSuspended(memberID string) (bool, error) {
 
 type WhiteList struct {
 	ID       string `cache:"key"`
-	DeviceID string `cache:"optional"`
+	DeviceID string `cache:"optional" json:"device_id"`
 }
 
 func isLoggedIn(memberID int, deviceID string) (bool, error) {
