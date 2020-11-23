@@ -72,11 +72,13 @@ func (request *Request) Send() ([]byte, int) {
 // @ctx: *gin.Context
 // return *Request
 func (request *Request) WithContext(ctx *gin.Context) *Request {
-	req := *request
+	if request.Headers == nil {
+		request.Headers = map[string]string{}
+	}
 	for k, v := range ctx.Request.Header {
 		if len(v) > 0 {
-			req.Headers[k] = v[0]
+			request.Headers[k] = v[0]
 		}
 	}
-	return &req
+	return request
 }

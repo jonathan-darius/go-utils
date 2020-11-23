@@ -1,16 +1,16 @@
 package pagination
 
+// Pagination type schema
 type Pagination struct {
-	Limit  int `form:"limit"`
-	Page   int `form:"page"`
+	Limit  int `form:"limit" cache:"optional"`
+	Page   int `form:"page" cache:"optional"`
 	Offset int
 }
-
 type Paginator interface {
 	Paginate()
 }
 
-// Pagination params
+// Paginate params
 func (p *Pagination) Paginate() {
 	if p.Limit < 1 {
 		p.Limit = 10
@@ -18,5 +18,6 @@ func (p *Pagination) Paginate() {
 	if p.Page < 1 {
 		p.Page = 1
 	}
+
 	p.Offset = p.Limit * (p.Page - 1)
 }

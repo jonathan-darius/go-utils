@@ -33,7 +33,7 @@ type ResponseResult struct {
 
 // Log uses current response context to log
 func (resp ResponseResult) Log(message string) {
-	logger.LogError(resp.Context, resp.UUID, message)
+	logger.LogWithContext(resp.Context, resp.UUID, message)
 }
 
 // ErrorDetails contains '|' separated details for each field
