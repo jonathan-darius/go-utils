@@ -73,12 +73,15 @@ func log(service string, fields logrus.Fields, errMsg string) {
 	latency := time.Since(start)
 	fields["ResponseTime"] = latency
 
+	// get the callers (depth 2)
 	stack := ""
+	indent := ""
 	for i := 3; i > 1; i-- {
 		pc, file, line, ok := runtime.Caller(3)
 		if ok {
-			stack += fmt.Sprintf("%s %s#%d\n", runtime.FuncForPC(pc).Name(), file, line)
+			stack += fmt.Sprintf("%s%s %s#%d\n", indent, runtime.FuncForPC(pc).Name(), file, line)
 		}
+		indent += "\t"
 	}
 	fields["Trace"] = stack
 
