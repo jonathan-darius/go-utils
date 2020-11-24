@@ -77,7 +77,7 @@ func log(service string, fields logrus.Fields, errMsg string) {
 	stack := ""
 	indent := ""
 	for i := 3; i > 1; i-- {
-		pc, file, line, ok := runtime.Caller(3)
+		pc, file, line, ok := runtime.Caller(i)
 		if ok {
 			stack += fmt.Sprintf("%s%s %s#%d\n", indent, runtime.FuncForPC(pc).Name(), file, line)
 		}
