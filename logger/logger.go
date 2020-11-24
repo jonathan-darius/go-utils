@@ -50,7 +50,8 @@ func log(service string, fields logrus.Fields, errMsg string) {
 
 	client, err := elastic.NewClient(
 		elastic.SetSniff(false),
-		elastic.SetURL(os.Getenv("ELASTICSEARCH_HOST")))
+		elastic.SetURL(os.Getenv("ELASTICSEARCH_HOST")),
+	)
 	if err != nil {
 		logger.Println("logger: ", err.Error())
 		logger.Println(errMsg)
@@ -61,7 +62,8 @@ func log(service string, fields logrus.Fields, errMsg string) {
 		client,
 		os.Getenv("ELASTICSEARCH_HOST"),
 		logrus.DebugLevel,
-		service)
+		service,
+	)
 	if err != nil {
 		logger.Println("logger: ", err.Error())
 		logger.Println(errMsg)
