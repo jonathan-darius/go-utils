@@ -65,7 +65,7 @@ func getKey(data interface{}) (key string, err error) {
 			if isDive || tags[0] == "optional" {
 				continue
 			}
-			return "", fmt.Errorf("redis key: data cannot be empty: %v", name)
+			return "", fmt.Errorf("redis key: data cannot be empty: %v (use optional tag to allow empty value)", name)
 		}
 
 		value := field.Interface()
@@ -97,7 +97,7 @@ func key(serviceName string, data interface{}, prefixes ...string) (key string, 
 	}
 
 	if reflect.DeepEqual(data, reflect.Zero(reflect.TypeOf(data)).Interface()) {
-		return "", fmt.Errorf("redis key: data should not be empty")
+		log.Println("redis key: data struct is empty")
 	}
 
 	// pointer dereference

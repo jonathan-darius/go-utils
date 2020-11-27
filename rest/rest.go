@@ -14,7 +14,7 @@ import (
 	uuid "github.com/forkyid/go-utils/uuid"
 	"github.com/gin-gonic/gin"
 	"github.com/globalsign/mgo/bson"
-	"github.com/go-playground/validator"
+	"github.com/go-playground/validator/v10"
 )
 
 // Response types
@@ -33,7 +33,7 @@ type ResponseResult struct {
 
 // Log uses current response context to log
 func (resp ResponseResult) Log(message string) {
-	logger.LogError(resp.Context, resp.UUID, message)
+	logger.LogWithContext(resp.Context, resp.UUID, message)
 }
 
 // ErrorDetails contains '|' separated details for each field
