@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -11,15 +12,13 @@ import (
 
 // Get params
 // @key: string
-// return interface
-func Get(key string, seconds ...int) (interface{}, error) {
+// return interface{}, error
+func Get(key string, seconds ...int) (map[string]interface{}, error) {
 	if isCacheConnected() == false {
 		return nil, fmt.Errorf("get: connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
 
 	client := getRedisClient()
-
-	var data interface{}
 
 	resp := client.Get(key)
 	if resp.Err() == redis.Nil {
@@ -30,6 +29,7 @@ func Get(key string, seconds ...int) (interface{}, error) {
 		return nil, fmt.Errorf("get: redis get failed: %s: %s", os.Getenv("REDIS_HOST"), resp.Err().Error())
 	}
 
+	data := map[string]interface{}{}
 	err := json.Unmarshal([]byte(resp.Val()), &data)
 	if err != nil {
 		return nil, fmt.Errorf("get: unmarshal failed: %s: %s", os.Getenv("REDIS_HOST"), err.Error())
@@ -40,6 +40,41 @@ func Get(key string, seconds ...int) (interface{}, error) {
 	}
 
 	return data, nil
+}
+
+// GetUnmarshal params
+// @key: string
+// @target: interface{}
+// return error
+func GetUnmarshal(key string, target interface{}, seconds ...int) error {
+	if reflect.ValueOf(target).Kind() != reflect.Ptr {
+		fmt.Println("unmarshal target is not a pointer")
+	}
+	if isCacheConnected() == false {
+		return fmt.Errorf("redis connect failed: %s", os.Getenv("REDIS_HOST"))
+	}
+
+	client := getRedisClient()
+
+	resp := client.Get(key)
+	if resp.Err() == redis.Nil {
+		return nil
+	}
+
+	if resp.Err() != nil {
+		return fmt.Errorf("redis get failed: %s: %s", os.Getenv("REDIS_HOST"), resp.Err().Error())
+	}
+
+	err := json.Unmarshal([]byte(resp.Val()), target)
+	if err != nil {
+		return fmt.Errorf("unmarshal failed: %s: %s", os.Getenv("REDIS_HOST"), err.Error())
+	}
+
+	if len(seconds) == 1 {
+		go SetExpire(key, seconds[0])
+	}
+
+	return nil
 }
 
 // SetJSON params
