@@ -13,7 +13,7 @@ import (
 // Get params
 // @key: string
 // return interface{}, error
-func Get(key string, seconds ...int) (map[string]interface{}, error) {
+func Get(key string, seconds ...int) (interface{}, error) {
 	if isCacheConnected() == false {
 		return nil, fmt.Errorf("get: connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
@@ -29,7 +29,7 @@ func Get(key string, seconds ...int) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("get: redis get failed: %s: %s", os.Getenv("REDIS_HOST"), resp.Err().Error())
 	}
 
-	data := map[string]interface{}{}
+	var data interface{}
 	err := json.Unmarshal([]byte(resp.Val()), &data)
 	if err != nil {
 		return nil, fmt.Errorf("get: unmarshal failed: %s: %s", os.Getenv("REDIS_HOST"), err.Error())
