@@ -8,7 +8,7 @@ import (
 
 	"github.com/forkyid/go-utils/rest"
 	"github.com/forkyid/go-utils/rest/restid"
-	"github.com/go-playground/validator"
+	"github.com/go-playground/validator/v10"
 )
 
 // Validator validator
