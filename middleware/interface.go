@@ -19,5 +19,5 @@ func NewMiddleware(
 
 type Middlewarer interface {
 	Auth(ctx *gin.Context)
-	CORS(c *gin.Context)
+	CORS(ctx *gin.Context)
 }
