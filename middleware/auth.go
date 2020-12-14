@@ -30,6 +30,36 @@ type MemberData struct {
 	Data       map[string]interface{} `json:"data,omitempty"`
 }
 
+func GetMemberStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status MemberData, err error) {
+	statusKey := cache.ExternalKey("global", MemberStatus{
+		ID: aes.Encrypt(memberID),
+	})
+
+	err = cache.GetUnmarshal(statusKey, &status, 600)
+	if err != nil && err != redis.Nil {
+		return status, errors.Wrap(err, "redis get")
+	}
+
+	if err == redis.Nil {
+		status, err := getMemberData(es, memberID)
+		if err != nil {
+			return status, errors.Wrap(err, "get member data from: es")
+		}
+
+		status.IsBanned, err = isBanned(ctx)
+		if err != nil {
+			return status, errors.Wrap(err, "check banned")
+		}
+
+		err = cache.SetJSON(statusKey, status, 600)
+		if err != nil {
+			return status, errors.Wrap(err, "redis set")
+		}
+	}
+
+	return status, nil
+}
+
 func (mid *Middleware) Auth(ctx *gin.Context) {
 	id, err := jwt.ExtractID(ctx.GetHeader("Authorization"))
 	if err != nil {
@@ -38,43 +68,12 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 		return
 	}
 
-	statusKey := cache.ExternalKey("global", MemberStatus{
-		ID: aes.Encrypt(id),
-	})
-
-	status := MemberData{}
-	err = cache.GetUnmarshal(statusKey, &status, 600)
-	if err != nil && err != redis.Nil {
+	status, err := GetMemberStatus(ctx, mid.elastic, id)
+	if err != nil {
 		rest.ResponseMessage(ctx, http.StatusInternalServerError).
-			Log("auth: get unmarshal: " + err.Error())
+			Log("auth: " + err.Error())
 		ctx.Abort()
 		return
-	}
-
-	if err == redis.Nil {
-		status, err := getMemberData(mid.elastic, id)
-		if err != nil {
-			rest.ResponseMessage(ctx, http.StatusInternalServerError).
-				Log("auth: get data: " + err.Error())
-			ctx.Abort()
-			return
-		}
-
-		status.IsBanned, err = isBanned(ctx)
-		if err != nil {
-			rest.ResponseMessage(ctx, http.StatusInternalServerError).
-				Log("auth: check banned: " + err.Error())
-			ctx.Abort()
-			return
-		}
-
-		err = cache.SetJSON(statusKey, status, 600)
-		if err != nil {
-			rest.ResponseMessage(ctx, http.StatusInternalServerError).
-				Log("auth: cache set: " + err.Error())
-			ctx.Abort()
-			return
-		}
 	}
 
 	if status.IsBanned {
