@@ -78,7 +78,7 @@ func log(service string, fields logrus.Fields, errMsg string) {
 	// get the callers (depth 2)
 	stack := ""
 	indent := ""
-	for i := 4; i > 1; i-- {
+	for i := 3; i > 1; i-- {
 		pc, file, line, ok := runtime.Caller(i)
 		if ok {
 			stack += fmt.Sprintf("%s%s %s#%d\n", indent, runtime.FuncForPC(pc).Name(), file, line)
