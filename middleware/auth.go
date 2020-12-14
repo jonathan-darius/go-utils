@@ -19,12 +19,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type MemberDataKey struct {
-	ID       string `cache:"key"`
-	DeviceID string `cache:"optional" json:"device_id"`
+type MemberStatus struct {
+	ID string `cache:"key"`
 }
 
 type MemberData struct {
+	DeviceID   string                 `json:"device_id,omitempty"`
 	IsBanned   bool                   `json:"is_banned,omitempty"`
 	SuspendEnd *time.Time             `json:"suspend_end,omitempty"`
 	Data       map[string]interface{} `json:"data,omitempty"`
@@ -38,9 +38,8 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 		return
 	}
 
-	statusKey := cache.ExternalKey("global", MemberDataKey{
-		ID:       aes.Encrypt(id),
-		DeviceID: ctx.GetHeader("X-Unique-ID"),
+	statusKey := cache.ExternalKey("global", MemberStatus{
+		ID: aes.Encrypt(id),
 	})
 
 	status := MemberData{}
@@ -53,28 +52,18 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 	}
 
 	if err == redis.Nil {
-		banned, err := isBanned(ctx)
-		if err != nil {
-			rest.ResponseMessage(ctx, http.StatusInternalServerError).
-				Log("auth: check banned: " + err.Error())
-			ctx.Abort()
-			return
-		}
-		if banned {
-			status.IsBanned = true
-			err = cache.SetJSON(statusKey, status, 600)
-			if err != nil {
-				rest.ResponseMessage(ctx, http.StatusInternalServerError).
-					Log("auth: cache set: " + err.Error())
-				ctx.Abort()
-				return
-			}
-		}
-
 		status, err := getMemberData(mid.elastic, id)
 		if err != nil {
 			rest.ResponseMessage(ctx, http.StatusInternalServerError).
 				Log("auth: get data: " + err.Error())
+			ctx.Abort()
+			return
+		}
+
+		status.IsBanned, err = isBanned(ctx)
+		if err != nil {
+			rest.ResponseMessage(ctx, http.StatusInternalServerError).
+				Log("auth: check banned: " + err.Error())
 			ctx.Abort()
 			return
 		}
@@ -96,6 +85,13 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 
 	if status.SuspendEnd != nil && status.SuspendEnd.After(time.Now()) {
 		rest.ResponseMessage(ctx, http.StatusForbidden, "Suspended")
+		ctx.Abort()
+		return
+	}
+
+	deviceID := ctx.GetHeader("X-Unique-ID")
+	if status.DeviceID != deviceID {
+		rest.ResponseMessage(ctx, http.StatusUnauthorized)
 		ctx.Abort()
 		return
 	}
