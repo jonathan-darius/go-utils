@@ -22,15 +22,21 @@ type Request struct {
 // @method: string
 // return bool
 func validMethod(method string) bool {
-	return method == http.MethodConnect ||
-		method == http.MethodDelete ||
-		method == http.MethodGet ||
-		method == http.MethodHead ||
-		method == http.MethodOptions ||
-		method == http.MethodPatch ||
-		method == http.MethodPost ||
-		method == http.MethodPut ||
-		method == http.MethodTrace
+	switch method {
+	default:
+		return false
+	case
+		http.MethodConnect,
+		http.MethodDelete,
+		http.MethodGet,
+		http.MethodHead,
+		http.MethodOptions,
+		http.MethodPatch,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodTrace:
+		return true
+	}
 }
 
 // Send func

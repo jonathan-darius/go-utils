@@ -10,6 +10,7 @@ import (
 )
 
 var client *elastic.Client
+var aiClient *elastic.Client
 
 // GetESClient open connection
 func GetESClient() (*elastic.Client, error) {
@@ -21,7 +22,17 @@ func GetESClient() (*elastic.Client, error) {
 			elastic.SetHealthcheck(false),
 		)
 	}
+	return client, err
+}
 
+// GetAIESClient open connection AI
+func GetAIESClient() (*elastic.Client, error) {
+	var err error
+	if aiClient == nil {
+		aiClient, err = elastic.NewClient(elastic.SetURL(os.Getenv("AI_ELASTICSEARCH_HOST")),
+			elastic.SetSniff(false),
+			elastic.SetHealthcheck(false))
+	}
 	return client, err
 }
 

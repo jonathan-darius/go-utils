@@ -1,20 +1,66 @@
 package middleware
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/forkyid/go-utils/aes"
 	"github.com/forkyid/go-utils/cache"
 	"github.com/forkyid/go-utils/jwt"
 	"github.com/forkyid/go-utils/rest"
+	"github.com/go-redis/redis"
+	"github.com/olivere/elastic/v7"
 	"github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 )
 
-func Authorization(ctx *gin.Context) {
+type MemberStatus struct {
+	ID string `cache:"key"`
+}
+
+type MemberData struct {
+	DeviceID   string                 `json:"device_id,omitempty"`
+	IsBanned   bool                   `json:"is_banned,omitempty"`
+	SuspendEnd *time.Time             `json:"suspend_end,omitempty"`
+	Data       map[string]interface{} `json:"data,omitempty"`
+}
+
+func GetMemberStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status MemberData, err error) {
+	statusKey := cache.ExternalKey("global", MemberStatus{
+		ID: aes.Encrypt(memberID),
+	})
+
+	err = cache.GetUnmarshal(statusKey, &status, 600)
+	if err != nil && err != redis.Nil {
+		return status, errors.Wrap(err, "redis get")
+	}
+
+	if err == redis.Nil {
+		status, err := getMemberData(es, memberID)
+		if err != nil {
+			return status, errors.Wrap(err, "get member data from: es")
+		}
+
+		status.IsBanned, err = isBanned(ctx)
+		if err != nil {
+			return status, errors.Wrap(err, "check banned")
+		}
+
+		err = cache.SetJSON(statusKey, status, 600)
+		if err != nil {
+			return status, errors.Wrap(err, "redis set")
+		}
+	}
+
+	return status, nil
+}
+
+func (mid *Middleware) Auth(ctx *gin.Context) {
 	id, err := jwt.ExtractID(ctx.GetHeader("Authorization"))
 	if err != nil {
 		rest.ResponseMessage(ctx, http.StatusUnauthorized)
@@ -22,41 +68,28 @@ func Authorization(ctx *gin.Context) {
 		return
 	}
 
-	banned, err := isBanned(id, ctx.GetHeader("Authorization"))
+	status, err := GetMemberStatus(ctx, mid.elastic, id)
 	if err != nil {
 		rest.ResponseMessage(ctx, http.StatusInternalServerError).
-			Log("auth: check banned: " + err.Error())
+			Log("auth: " + err.Error())
 		ctx.Abort()
 		return
 	}
-	if banned {
+
+	if status.IsBanned {
 		rest.ResponseMessage(ctx, http.StatusForbidden, "Banned")
 		ctx.Abort()
 		return
 	}
 
-	suspended, err := isSuspended(aes.Encrypt(id))
-	if err != nil {
-		rest.ResponseMessage(ctx, http.StatusInternalServerError).
-			Log("auth: check suspend: " + err.Error())
-		ctx.Abort()
-		return
-	}
-	if suspended {
-		rest.ResponseMessage(ctx, http.StatusForbidden, "Suspend")
+	if status.SuspendEnd != nil && status.SuspendEnd.After(time.Now()) {
+		rest.ResponseMessage(ctx, http.StatusForbidden, "Suspended")
 		ctx.Abort()
 		return
 	}
 
-	loggedIn, err := isLoggedIn(id, ctx.GetHeader("X-Unique-ID"))
-	if err != nil {
-		rest.ResponseMessage(ctx, http.StatusInternalServerError).
-			Log("auth: whitelist: redis check exists: " + err.Error())
-		ctx.Abort()
-		return
-	}
-
-	if !loggedIn {
+	deviceID := ctx.GetHeader("X-Unique-ID")
+	if status.DeviceID != deviceID {
 		rest.ResponseMessage(ctx, http.StatusUnauthorized)
 		ctx.Abort()
 		return
@@ -65,80 +98,48 @@ func Authorization(ctx *gin.Context) {
 	ctx.Next()
 }
 
-type Ban struct {
-	ID string `cache:"key"`
-}
-
-func isBanned(memberID int, bearer string) (bool, error) {
-	redisKey := cache.ExternalKey("global", Ban{
-		ID: aes.Encrypt(memberID),
-	})
-
-	banned, err := cache.IsCacheExists(redisKey)
-	if err != nil {
-		return false, errors.Wrap(err, "redis: check exists")
-	}
-	if banned {
-		return true, nil
-	}
-
-	header := map[string]string{
-		"Authorization": bearer,
-	}
-
+func isBanned(ctx *gin.Context) (bool, error) {
+	id, _ := jwt.ExtractID(ctx.GetHeader("Authorization"))
 	query := map[string]string{
 		"block_type_id": aes.Encrypt(1),
 		"blocker_id":    "0",
-		"blocked_id":    aes.Encrypt(memberID),
+		"blocked_id":    aes.Encrypt(id),
 	}
-
 	req := rest.Request{
 		URL:     fmt.Sprintf("%v/report/v1/blocks", os.Getenv("API_ORIGIN_URL")),
 		Method:  http.MethodGet,
-		Headers: header,
 		Queries: query,
 	}
-	_, code := req.Send()
-	if code != http.StatusOK {
-		if code != http.StatusNotFound {
-			return false, fmt.Errorf("get blocked: status code unexpected: %d", code)
-		}
+	_, code := req.WithContext(ctx).Send()
+	if code == http.StatusNotFound {
 		return false, nil
 	}
-
-	err = cache.SetJSON(redisKey, "", 600)
-	if err != nil {
-		return false, errors.Wrap(err, "redis: set cache")
+	if code != http.StatusOK {
+		return false, fmt.Errorf("get blocked: status code unexpected: %d", code)
 	}
-
 	return true, nil
 }
 
-type Suspend struct {
-	ID string `cache:"key"`
-}
+func getMemberData(es *elastic.Client, id int) (status MemberData, err error) {
+	query := elastic.NewMatchQuery("id", aes.Encrypt(id))
+	searchResult, err := es.Search().
+		Index("users").
+		Type("_doc").
+		Query(query).
+		Do(context.Background())
 
-func isSuspended(memberID string) (bool, error) {
-	suspended, err := cache.IsCacheExists(
-		cache.ExternalKey("global", Suspend{
-			ID: memberID,
-		}))
-	return suspended, errors.Wrap(err, "redis: check exists")
-}
-
-type WhiteList struct {
-	ID       string `cache:"key"`
-	DeviceID string `cache:"optional" json:"device_id"`
-}
-
-func isLoggedIn(memberID int, deviceID string) (bool, error) {
-	loggedIn, err := cache.IsCacheExists(
-		cache.ExternalKey("global", WhiteList{
-			ID:       aes.Encrypt(memberID),
-			DeviceID: deviceID,
-		}))
 	if err != nil {
-		return false, errors.Wrap(err, "redis: check exists")
+		return status, errors.Wrap(err, "elastic")
 	}
-	return loggedIn, nil
+
+	if searchResult == nil || searchResult.TotalHits() == 0 {
+		return status, errors.Wrap(err, "memebr not found")
+	}
+
+	err = json.Unmarshal(searchResult.Hits.Hits[0].Source, &status)
+	if err != nil {
+		return status, errors.Wrap(err, "unmarshal")
+	}
+
+	return status, nil
 }
