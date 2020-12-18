@@ -1,11 +1,5 @@
 package pagination
 
-const (
-	DefaultPage  = 1
-	DefaultLimit = 10
-	MaximumLimit = 100
-)
-
 // Pagination type schema
 type Pagination struct {
 	Limit     int `form:"limit" cache:"optional"`

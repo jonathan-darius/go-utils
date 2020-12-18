@@ -6,6 +6,12 @@ type Paginator interface {
 	Paginate()
 }
 
+const (
+	DefaultPage  = 1
+	DefaultLimit = 10
+	MaximumLimit = 100
+)
+
 // Paginate params
 func (p *Pagination) Paginate() {
 	p.ValidatePagination()
