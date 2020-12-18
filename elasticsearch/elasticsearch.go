@@ -19,8 +19,7 @@ func GetESClient() (*elastic.Client, error) {
 		client, err = elastic.NewClient(
 			elastic.SetURL(os.Getenv("ELASTICSEARCH_HOST")),
 			elastic.SetSniff(false),
-			elastic.SetHealthcheck(false),
-		)
+			elastic.SetHealthcheck(false))
 	}
 	return client, err
 }
@@ -29,11 +28,12 @@ func GetESClient() (*elastic.Client, error) {
 func GetAIESClient() (*elastic.Client, error) {
 	var err error
 	if aiClient == nil {
-		aiClient, err = elastic.NewClient(elastic.SetURL(os.Getenv("AI_ELASTICSEARCH_HOST")),
+		aiClient, err = elastic.NewClient(
+			elastic.SetURL(os.Getenv("AI_ELASTICSEARCH_HOST")),
 			elastic.SetSniff(false),
 			elastic.SetHealthcheck(false))
 	}
-	return client, err
+	return aiClient, err
 }
 
 // DummyHTTPClient for mocking es responses
