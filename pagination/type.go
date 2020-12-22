@@ -6,5 +6,5 @@ type Pagination struct {
 	Page      int `form:"page" cache:"optional"`
 	Offset    int
 	TotalPage int // Total number of pages
-	Total     int // Total of data in database
+	TotalData int // Total of data in database
 }

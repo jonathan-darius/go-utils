@@ -32,9 +32,9 @@ func (p *Pagination) ValidatePagination() {
 
 // SetTotalPage will set TotalPage value
 func (p *Pagination) SetTotalPage() {
-	if p.Total > 0 && p.Total < p.Limit {
-		p.Limit = p.Total
+	if p.TotalData > 0 && p.TotalData < p.Limit {
+		p.Limit = p.TotalData
 	}
 
-	p.TotalPage = int(math.Ceil(float64(p.Total) / float64(p.Limit)))
+	p.TotalPage = int(math.Ceil(float64(p.TotalData) / float64(p.Limit)))
 }
