@@ -1,23 +1,40 @@
 package pagination
 
-// Pagination type schema
-type Pagination struct {
-	Limit  int `form:"limit" cache:"optional"`
-	Page   int `form:"page" cache:"optional"`
-	Offset int
-}
+import "math"
+
 type Paginator interface {
 	Paginate()
 }
 
+const (
+	DefaultPage  = 1
+	DefaultLimit = 10
+	MaximumLimit = 100
+)
+
 // Paginate params
 func (p *Pagination) Paginate() {
-	if p.Limit < 1 {
-		p.Limit = 10
+	p.ValidatePagination()
+	p.Offset = p.Limit * (p.Page - 1)
+}
+
+// SetToDefault will set to it's default value
+func (p *Pagination) SetToDefault() {
+	p.Page, p.Limit = DefaultPage, DefaultLimit
+}
+
+// ValidatePagination will validate pagination's value
+func (p *Pagination) ValidatePagination() {
+	if p.Page < 1 || p.Limit < 1 || p.Limit > MaximumLimit {
+		p.SetToDefault()
 	}
-	if p.Page < 1 {
-		p.Page = 1
+}
+
+// SetTotalPage will set TotalPage value
+func (p *Pagination) SetTotalPage() {
+	if p.TotalData > 0 && p.TotalData < p.Limit {
+		p.Limit = p.TotalData
 	}
 
-	p.Offset = p.Limit * (p.Page - 1)
+	p.TotalPage = int(math.Ceil(float64(p.TotalData) / float64(p.Limit)))
 }
