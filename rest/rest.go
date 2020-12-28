@@ -9,6 +9,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -81,14 +82,14 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 	go func() {
 		requestBody, err := ioutil.ReadAll(context.Request.Body)
 		if err != nil {
-			log.Panicln(err.Error())
+			fmt.Println(err.Error())
 		}
 
 		var requestBodyInterface map[string]interface{}
 		if len(requestBody) > 1 {
 			err = json.Unmarshal(requestBody, &requestBodyInterface)
 			if err != nil {
-				log.Panicln(err.Error())
+				fmt.Println(err.Error())
 			}
 		}
 		body := &APIActivity{
@@ -110,7 +111,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 		buf := new(bytes.Buffer)
 		json.NewEncoder(buf).Encode(body)
 		req := Request{
-			URL:    "https://apidev.forky.id/activity/v1/apis",
+			URL:    fmt.Sprintf("%v/activity/v1/apis", os.Getenv("API_ORIGIN_URL")),
 			Method: http.MethodPost,
 			Body:   buf,
 		}
