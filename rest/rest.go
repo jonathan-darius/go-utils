@@ -3,9 +3,12 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"mime/multipart"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -75,6 +78,47 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 	}
 
 	context.JSON(status, response)
+	go func() {
+		requestBody, err := ioutil.ReadAll(context.Request.Body)
+		if err != nil {
+			log.Panicln(err.Error())
+		}
+
+		var requestBodyInterface map[string]interface{}
+		if len(requestBody) > 1 {
+			err = json.Unmarshal(requestBody, &requestBodyInterface)
+			if err != nil {
+				log.Panicln(err.Error())
+			}
+		}
+		body := &APIActivity{
+			Request: ActivityRequest{
+				Method:        context.Request.Method,
+				URL:           context.Request.URL,
+				Header:        context.Request.Header,
+				Body:          requestBodyInterface,
+				Host:          context.Request.Host,
+				Form:          context.Request.Form,
+				PostForm:      context.Request.PostForm,
+				MultipartForm: context.Request.MultipartForm,
+				RemoteAddr:    context.Request.RemoteAddr,
+				RequestURI:    context.Request.RequestURI,
+			},
+			Response: response,
+		}
+
+		buf := new(bytes.Buffer)
+		json.NewEncoder(buf).Encode(body)
+		req := Request{
+			URL:    "https://apidev.forky.id/activity/v1/apis",
+			Method: http.MethodPost,
+			Body:   buf,
+		}
+		_, code := req.Send()
+		if code != http.StatusOK {
+			fmt.Println(strconv.Itoa(status))
+		}
+	}()
 	return ResponseResult{context, uuid.GetUUID()}
 }
 
