@@ -27,6 +27,7 @@ type Response struct {
 	Error   string            `json:"error,omitempty"`
 	Message string            `json:"message,omitempty"`
 	Detail  map[string]string `json:"detail,omitempty"`
+	Status  int               `json:"status,omitempty"`
 }
 
 // ResponseResult types
@@ -82,14 +83,14 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 	go func() {
 		requestBody, err := ioutil.ReadAll(context.Request.Body)
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Println(err.Error())
 		}
 
 		var requestBodyInterface map[string]interface{}
 		if len(requestBody) > 1 {
 			err = json.Unmarshal(requestBody, &requestBodyInterface)
 			if err != nil {
-				fmt.Println(err.Error())
+				log.Println(err.Error())
 			}
 		}
 		body := &APIActivity{
@@ -105,7 +106,11 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 				RemoteAddr:    context.Request.RemoteAddr,
 				RequestURI:    context.Request.RequestURI,
 			},
-			Response: response,
+			Response: Response{
+				Body:    payload,
+				Status:  status,
+				Message: msg[0],
+			},
 		}
 
 		buf := new(bytes.Buffer)
@@ -117,7 +122,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 		}
 		_, code := req.Send()
 		if code != http.StatusOK {
-			fmt.Println(strconv.Itoa(status))
+			log.Println(strconv.Itoa(status))
 		}
 	}()
 	return ResponseResult{context, uuid.GetUUID()}
@@ -150,6 +155,50 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 	}
 
 	context.JSON(status, response)
+	go func() {
+		requestBody, err := ioutil.ReadAll(context.Request.Body)
+		if err != nil {
+			log.Println(err.Error())
+		}
+
+		var requestBodyInterface map[string]interface{}
+		if len(requestBody) > 1 {
+			err = json.Unmarshal(requestBody, &requestBodyInterface)
+			if err != nil {
+				log.Println(err.Error())
+			}
+		}
+		body := &APIActivity{
+			Request: ActivityRequest{
+				Method:        context.Request.Method,
+				URL:           context.Request.URL,
+				Header:        context.Request.Header,
+				Body:          requestBodyInterface,
+				Host:          context.Request.Host,
+				Form:          context.Request.Form,
+				PostForm:      context.Request.PostForm,
+				MultipartForm: context.Request.MultipartForm,
+				RemoteAddr:    context.Request.RemoteAddr,
+				RequestURI:    context.Request.RequestURI,
+			},
+			Response: Response{
+				Status:  status,
+				Message: msg[0],
+			},
+		}
+
+		buf := new(bytes.Buffer)
+		json.NewEncoder(buf).Encode(body)
+		req := Request{
+			URL:    fmt.Sprintf("%v/activity/v1/apis", os.Getenv("API_ORIGIN_URL")),
+			Method: http.MethodPost,
+			Body:   buf,
+		}
+		_, code := req.Send()
+		if code != http.StatusOK {
+			log.Println(strconv.Itoa(status))
+		}
+	}()
 	return ResponseResult{context, response.Error}
 }
 
