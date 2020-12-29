@@ -80,51 +80,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 	}
 
 	context.JSON(status, response)
-	go func() {
-		requestBody, err := ioutil.ReadAll(context.Request.Body)
-		if err != nil {
-			log.Println(err.Error())
-		}
-
-		var requestBodyInterface map[string]interface{}
-		if len(requestBody) > 1 {
-			err = json.Unmarshal(requestBody, &requestBodyInterface)
-			if err != nil {
-				log.Println(err.Error())
-			}
-		}
-		body := &APIActivity{
-			Request: ActivityRequest{
-				Method:        context.Request.Method,
-				URL:           context.Request.URL,
-				Header:        context.Request.Header,
-				Body:          requestBodyInterface,
-				Host:          context.Request.Host,
-				Form:          context.Request.Form,
-				PostForm:      context.Request.PostForm,
-				MultipartForm: context.Request.MultipartForm,
-				RemoteAddr:    context.Request.RemoteAddr,
-				RequestURI:    context.Request.RequestURI,
-			},
-			Response: Response{
-				Body:    payload,
-				Status:  status,
-				Message: msg[0],
-			},
-		}
-
-		buf := new(bytes.Buffer)
-		json.NewEncoder(buf).Encode(body)
-		req := Request{
-			URL:    fmt.Sprintf("%v/activity/v1/apis", os.Getenv("API_ORIGIN_URL")),
-			Method: http.MethodPost,
-			Body:   buf,
-		}
-		_, code := req.Send()
-		if code != http.StatusOK {
-			log.Println(strconv.Itoa(status))
-		}
-	}()
+	go InsertAPIActivity(context, status, payload, msg[0])
 	return ResponseResult{context, uuid.GetUUID()}
 }
 
@@ -155,50 +111,7 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 	}
 
 	context.JSON(status, response)
-	go func() {
-		requestBody, err := ioutil.ReadAll(context.Request.Body)
-		if err != nil {
-			log.Println(err.Error())
-		}
-
-		var requestBodyInterface map[string]interface{}
-		if len(requestBody) > 1 {
-			err = json.Unmarshal(requestBody, &requestBodyInterface)
-			if err != nil {
-				log.Println(err.Error())
-			}
-		}
-		body := &APIActivity{
-			Request: ActivityRequest{
-				Method:        context.Request.Method,
-				URL:           context.Request.URL,
-				Header:        context.Request.Header,
-				Body:          requestBodyInterface,
-				Host:          context.Request.Host,
-				Form:          context.Request.Form,
-				PostForm:      context.Request.PostForm,
-				MultipartForm: context.Request.MultipartForm,
-				RemoteAddr:    context.Request.RemoteAddr,
-				RequestURI:    context.Request.RequestURI,
-			},
-			Response: Response{
-				Status:  status,
-				Message: msg[0],
-			},
-		}
-
-		buf := new(bytes.Buffer)
-		json.NewEncoder(buf).Encode(body)
-		req := Request{
-			URL:    fmt.Sprintf("%v/activity/v1/apis", os.Getenv("API_ORIGIN_URL")),
-			Method: http.MethodPost,
-			Body:   buf,
-		}
-		_, code := req.Send()
-		if code != http.StatusOK {
-			log.Println(strconv.Itoa(status))
-		}
-	}()
+	go InsertAPIActivity(context, status, nil, msg[0])
 	return ResponseResult{context, response.Error}
 }
 
@@ -278,4 +191,55 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 	}
 	data := body["body"]
 	return data, err
+}
+
+// InsertAPIActivity params
+// @context: *gin.Context
+// status: int
+// payload: interface
+// msg: string
+func InsertAPIActivity(context *gin.Context, status int, payload interface{}, msg ...string) {
+	requestBody, err := ioutil.ReadAll(context.Request.Body)
+	if err != nil {
+		log.Println("read body failed" + err.Error())
+	}
+
+	var requestBodyInterface map[string]interface{}
+	if len(requestBody) > 1 {
+		err = json.Unmarshal(requestBody, &requestBodyInterface)
+		if err != nil {
+			log.Println("unmarshal data failed" + err.Error())
+		}
+	}
+	body := &APIActivity{
+		Request: ActivityRequest{
+			Method:        context.Request.Method,
+			URL:           context.Request.URL,
+			Header:        context.Request.Header,
+			Body:          requestBodyInterface,
+			Host:          context.Request.Host,
+			Form:          context.Request.Form,
+			PostForm:      context.Request.PostForm,
+			MultipartForm: context.Request.MultipartForm,
+			RemoteAddr:    context.Request.RemoteAddr,
+			RequestURI:    context.Request.RequestURI,
+		},
+		Response: Response{
+			Body:    payload,
+			Status:  status,
+			Message: msg[0],
+		},
+	}
+
+	buf := new(bytes.Buffer)
+	json.NewEncoder(buf).Encode(body)
+	req := Request{
+		URL:    fmt.Sprintf("%v/activity/v1/apis", os.Getenv("API_ORIGIN_URL")),
+		Method: http.MethodPost,
+		Body:   buf,
+	}
+	_, code := req.Send()
+	if code != http.StatusOK {
+		log.Println("insert to api activity failed" + strconv.Itoa(status))
+	}
 }
