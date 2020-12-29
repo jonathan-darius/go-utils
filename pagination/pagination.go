@@ -32,6 +32,7 @@ func (p *Pagination) ValidatePagination() {
 
 // SetTotalPage will set TotalPage value
 func (p *Pagination) SetTotalPage() {
+	p.ValidatePagination()
 	if p.TotalData > 0 && p.TotalData < p.Limit {
 		p.Limit = p.TotalData
 	}
