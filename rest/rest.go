@@ -201,28 +201,29 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 func InsertAPIActivity(context *gin.Context, status int, payload interface{}, msg ...string) {
 	requestBody, err := ioutil.ReadAll(context.Request.Body)
 	if err != nil {
-		log.Println("read body failed" + err.Error())
+		log.Println("read body failed " + err.Error())
 	}
 
 	var requestBodyInterface map[string]interface{}
 	if len(requestBody) > 1 {
 		err = json.Unmarshal(requestBody, &requestBodyInterface)
 		if err != nil {
-			log.Println("unmarshal data failed" + err.Error())
+			log.Println("unmarshal data failed " + err.Error())
 		}
 	}
 	body := &APIActivity{
 		Request: ActivityRequest{
-			Method:        context.Request.Method,
-			URL:           context.Request.URL,
-			Header:        context.Request.Header,
-			Body:          requestBodyInterface,
-			Host:          context.Request.Host,
-			Form:          context.Request.Form,
-			PostForm:      context.Request.PostForm,
-			MultipartForm: context.Request.MultipartForm,
-			RemoteAddr:    context.Request.RemoteAddr,
-			RequestURI:    context.Request.RequestURI,
+			Method:          context.Request.Method,
+			URL:             context.Request.URL,
+			Header:          context.Request.Header,
+			Body:            requestBodyInterface,
+			Host:            context.Request.Host,
+			Form:            context.Request.Form,
+			PostForm:        context.Request.PostForm,
+			MultipartForm:   context.Request.MultipartForm,
+			RemoteAddr:      context.Request.RemoteAddr,
+			PublicIPAddress: context.ClientIP(),
+			RequestURI:      context.Request.RequestURI,
 		},
 		Response: Response{
 			Body:    payload,
@@ -240,6 +241,6 @@ func InsertAPIActivity(context *gin.Context, status int, payload interface{}, ms
 	}
 	_, code := req.Send()
 	if code != http.StatusOK {
-		log.Println("insert to api activity failed" + strconv.Itoa(status))
+		log.Println("insert to api activity failed, status code " + strconv.Itoa(code))
 	}
 }
