@@ -18,10 +18,10 @@ type Request struct {
 	Queries map[string]string
 }
 
-// validMethod params
+// ValidMethod params
 // @method: string
 // return bool
-func validMethod(method string) bool {
+func ValidMethod(method string) bool {
 	switch method {
 	default:
 		return false
@@ -42,7 +42,7 @@ func validMethod(method string) bool {
 // Send func
 // return []byte, int
 func (request *Request) Send() ([]byte, int) {
-	if !validMethod(request.Method) {
+	if !ValidMethod(request.Method) {
 		log.Println("[WARN] Unsupported method supplied, use one of constants provided by http package (e.g. http.MethodGet)")
 		return nil, -1
 	}
