@@ -10,6 +10,7 @@ require (
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/uuid v1.1.2
+	github.com/mitchellh/mapstructure v1.4.1
 	github.com/olivere/elastic v6.2.35+incompatible
 	github.com/olivere/elastic/v7 v7.0.22
 	github.com/onsi/ginkgo v1.14.2 // indirect
