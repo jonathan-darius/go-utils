@@ -11,7 +11,9 @@ import (
 	"github.com/forkyid/go-utils/aes"
 	"github.com/forkyid/go-utils/cache"
 	"github.com/forkyid/go-utils/jwt"
+	"github.com/forkyid/go-utils/logger"
 	"github.com/forkyid/go-utils/rest"
+	"github.com/forkyid/go-utils/uuid"
 	"github.com/go-redis/redis"
 	"github.com/mitchellh/mapstructure"
 	"github.com/olivere/elastic/v7"
@@ -25,8 +27,8 @@ type MemberStatusKey struct {
 }
 
 type MemberStatus struct {
-	DeviceID   string     `json:"device_id,omitempty"`
-	IsBanned   bool       `json:"is_banned,omitempty"`
+	DeviceID   string     `json:"device_id,omitempty" mapstructure:"device_id"`
+	IsBanned   bool       `json:"is_banned,omitempty" mapstructure:"is_banned"`
 	SuspendEnd *time.Time `json:"suspend_end,omitempty"`
 }
 
@@ -37,10 +39,10 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 
 	err = cache.GetUnmarshal(statusKey, &status, 600)
 	if err != nil && err != redis.Nil {
-		return status, errors.Wrap(err, "redis get")
+		logger.LogWithContext(ctx, uuid.GetUUID(), errors.Wrap(err, "redis").Error())
 	}
 
-	if err == redis.Nil {
+	if err != nil || err == redis.Nil {
 		status, err := get(es, memberID)
 		if err != nil {
 			return status, errors.Wrap(err, "get member data from: es")
@@ -53,8 +55,10 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 
 		err = cache.SetJSON(statusKey, status, 600)
 		if err != nil {
-			return status, errors.Wrap(err, "redis set")
+			logger.LogWithContext(ctx, uuid.GetUUID(), errors.Wrap(err, "redis set").Error())
 		}
+
+		return status, nil
 	}
 
 	return status, nil
