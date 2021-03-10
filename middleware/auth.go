@@ -13,25 +13,25 @@ import (
 	"github.com/forkyid/go-utils/jwt"
 	"github.com/forkyid/go-utils/rest"
 	"github.com/go-redis/redis"
+	"github.com/mitchellh/mapstructure"
 	"github.com/olivere/elastic/v7"
 	"github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 )
 
-type MemberStatus struct {
+type MemberStatusKey struct {
 	ID string `cache:"key"`
 }
 
-type MemberData struct {
-	DeviceID   string                 `json:"device_id,omitempty"`
-	IsBanned   bool                   `json:"is_banned,omitempty"`
-	SuspendEnd *time.Time             `json:"suspend_end,omitempty"`
-	Data       map[string]interface{} `json:"data,omitempty"`
+type MemberStatus struct {
+	DeviceID   string     `json:"device_id,omitempty"`
+	IsBanned   bool       `json:"is_banned,omitempty"`
+	SuspendEnd *time.Time `json:"suspend_end,omitempty"`
 }
 
-func GetMemberStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status MemberData, err error) {
-	statusKey := cache.ExternalKey("global", MemberStatus{
+func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status MemberStatus, err error) {
+	statusKey := cache.ExternalKey("global", MemberStatusKey{
 		ID: aes.Encrypt(memberID),
 	})
 
@@ -41,7 +41,7 @@ func GetMemberStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status
 	}
 
 	if err == redis.Nil {
-		status, err := getMemberData(es, memberID)
+		status, err := get(es, memberID)
 		if err != nil {
 			return status, errors.Wrap(err, "get member data from: es")
 		}
@@ -68,7 +68,7 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 		return
 	}
 
-	status, err := GetMemberStatus(ctx, mid.elastic, id)
+	status, err := GetStatus(ctx, mid.elastic, id)
 	if err != nil {
 		rest.ResponseMessage(ctx, http.StatusInternalServerError).
 			Log("auth: " + err.Error())
@@ -83,7 +83,7 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 	}
 
 	if status.SuspendEnd != nil && status.SuspendEnd.After(time.Now()) {
-		rest.ResponseMessage(ctx, http.StatusForbidden, "Suspended")
+		rest.ResponseMessage(ctx, http.StatusLocked, "Suspended")
 		ctx.Abort()
 		return
 	}
@@ -120,7 +120,7 @@ func isBanned(ctx *gin.Context) (bool, error) {
 	return true, nil
 }
 
-func getMemberData(es *elastic.Client, id int) (status MemberData, err error) {
+func get(es *elastic.Client, id int) (status MemberStatus, err error) {
 	query := elastic.NewMatchQuery("id", aes.Encrypt(id))
 	searchResult, err := es.Search().
 		Index("users").
@@ -133,12 +133,18 @@ func getMemberData(es *elastic.Client, id int) (status MemberData, err error) {
 	}
 
 	if searchResult == nil || searchResult.TotalHits() == 0 {
-		return status, errors.Wrap(err, "memebr not found")
+		return status, errors.Wrap(err, "member not found")
 	}
 
-	err = json.Unmarshal(searchResult.Hits.Hits[0].Source, &status)
+	user := map[string]interface{}{}
+	err = json.Unmarshal(searchResult.Hits.Hits[0].Source, &user)
 	if err != nil {
 		return status, errors.Wrap(err, "unmarshal")
+	}
+
+	err = mapstructure.Decode(user["status"], &status)
+	if err != nil {
+		return status, errors.Wrap(err, "mapstructure.Decode")
 	}
 
 	return status, nil
