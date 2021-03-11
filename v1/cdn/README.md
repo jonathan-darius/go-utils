@@ -37,7 +37,7 @@ func ExampleClient() {
 ```go
 import (
 "fmt"
-"github.com/forkyid/go-utils/cdn"
+"github.com/forkyid/go-utils/v1/cdn"
 )
 
   
