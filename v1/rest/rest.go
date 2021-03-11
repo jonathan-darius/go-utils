@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/forkyid/go-utils/logger"
-	responseMsg "github.com/forkyid/go-utils/rest/response"
-	uuid "github.com/forkyid/go-utils/uuid"
+	"github.com/forkyid/go-utils/v1/logger"
+	responseMsg "github.com/forkyid/go-utils/v1/rest/response"
+	uuid "github.com/forkyid/go-utils/v1/uuid"
 	"github.com/gin-gonic/gin"
 	"github.com/globalsign/mgo/bson"
 	"github.com/go-playground/validator/v10"

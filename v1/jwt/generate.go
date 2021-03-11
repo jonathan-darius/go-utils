@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/forkyid/go-utils/rest/restid"
+	"github.com/forkyid/go-utils/v1/rest/restid"
 )
 
 var accessExpirationDuration = time.Duration(AccessTokenDurationMinute) * time.Minute

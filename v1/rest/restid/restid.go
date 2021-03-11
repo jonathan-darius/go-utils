@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/forkyid/go-utils/aes"
+	"github.com/forkyid/go-utils/v1/aes"
 )
 
 // ID type for database/json id handling

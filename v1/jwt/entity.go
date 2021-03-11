@@ -2,7 +2,7 @@ package jwt
 
 import (
 	"github.com/dgrijalva/jwt-go"
-	"github.com/forkyid/go-utils/rest/restid"
+	"github.com/forkyid/go-utils/v1/rest/restid"
 )
 
 // Claims claims

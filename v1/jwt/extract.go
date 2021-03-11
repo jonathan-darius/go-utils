@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/forkyid/go-utils/aes"
+	"github.com/forkyid/go-utils/v1/aes"
 )
 
 // ExtractClaims extracts claims from JWT, returns claims as map

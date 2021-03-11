@@ -12,7 +12,7 @@ Sign URLs with key and salt, so an attacker won’t be able to cause a denial-of
 ```go
 import (
 "fmt"
-"github.com/forkyid/go-utils/cdn"
+"github.com/forkyid/go-utils/v1/cdn"
 )
 
   
