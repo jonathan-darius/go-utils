@@ -73,8 +73,8 @@ var (
 			name:          "Test Case 4",
 			argsPage:      2,
 			argsLimit:     2000,
-			expectedPage:  page.DefaultPage,
-			expectedLimit: page.DefaultLimit,
+			expectedPage:  2,
+			expectedLimit: page.MaximumLimit,
 		},
 		{
 			name:          "Test Case 5",
@@ -89,6 +89,13 @@ var (
 			argsLimit:     -1000,
 			expectedPage:  page.DefaultPage,
 			expectedLimit: page.DefaultLimit,
+		},
+		{
+			name:          "Test Case 7",
+			argsPage:      1,
+			argsLimit:     250,
+			expectedPage:  1,
+			expectedLimit: page.MaximumLimit,
 		},
 	}
 
@@ -139,7 +146,7 @@ var (
 			name:           "Test Case 7",
 			argsPage:       7,
 			argsLimit:      1000,
-			expectedOffset: 0,
+			expectedOffset: page.MaximumLimit * 6,
 		},
 	}
 
@@ -210,8 +217,8 @@ func TestValidatePagination(t *testing.T) {
 		pageObj.ValidatePagination()
 
 		// Assert result based on test case
-		assert.Equal(t, pageObj.Page, test.expectedPage, fmt.Sprintf("Unexpected page value on %s", test.name))
-		assert.Equal(t, pageObj.Limit, test.expectedLimit, fmt.Sprintf("Unexpected limit value on %s", test.name))
+		assert.Equal(t, test.expectedPage, pageObj.Page, fmt.Sprintf("Unexpected page value on %s", test.name))
+		assert.Equal(t, test.expectedLimit, pageObj.Limit, fmt.Sprintf("Unexpected limit value on %s", test.name))
 	}
 }
 
@@ -226,7 +233,7 @@ func TestPaginate(t *testing.T) {
 		pageObj.Paginate()
 
 		// Assert result based on test case
-		assert.Equal(t, pageObj.Offset, test.expectedOffset, fmt.Sprintf("Unexpected offset value on %s", test.name))
+		assert.Equal(t, test.expectedOffset, pageObj.Offset, fmt.Sprintf("Unexpected offset value on %s", test.name))
 	}
 }
 
@@ -241,8 +248,8 @@ func TestSetTotalPage(t *testing.T) {
 		pageObj.SetTotalPage()
 
 		// Assert result based on test case
-		assert.Equal(t, pageObj.Limit, test.expectedLimit, fmt.Sprintf("Unexpected limit value on %s", test.name))
-		assert.Equal(t, pageObj.TotalPage, test.expectedTotalPage, fmt.Sprintf("Unexpected total page value on %s", test.name))
+		assert.Equal(t, test.expectedLimit, pageObj.Limit, fmt.Sprintf("Unexpected limit value on %s", test.name))
+		assert.Equal(t, test.expectedTotalPage, pageObj.TotalPage, fmt.Sprintf("Unexpected total page value on %s", test.name))
 	}
 }
 
