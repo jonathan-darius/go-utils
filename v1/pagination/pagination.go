@@ -9,7 +9,7 @@ type Paginator interface {
 const (
 	DefaultPage  = 1
 	DefaultLimit = 10
-	MaximumLimit = 250
+	MaximumLimit = 100
 )
 
 // Paginate params
