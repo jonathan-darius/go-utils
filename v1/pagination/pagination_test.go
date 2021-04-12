@@ -93,7 +93,7 @@ var (
 		{
 			name:          "Test Case 7",
 			argsPage:      1,
-			argsLimit:     250,
+			argsLimit:     100,
 			expectedPage:  1,
 			expectedLimit: page.MaximumLimit,
 		},
