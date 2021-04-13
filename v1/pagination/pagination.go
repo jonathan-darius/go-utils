@@ -25,8 +25,11 @@ func (p *Pagination) SetToDefault() {
 
 // ValidatePagination will validate pagination's value
 func (p *Pagination) ValidatePagination() {
-	if p.Page < 1 || p.Limit < 1 || p.Limit > MaximumLimit {
+	if p.Page < 1 || p.Limit < 1 {
 		p.SetToDefault()
+	}
+	if p.Limit > MaximumLimit {
+		p.Limit = MaximumLimit
 	}
 }
 
