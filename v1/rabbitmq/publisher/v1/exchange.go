@@ -31,14 +31,12 @@ func (route *Route) Publish(publish *Publish) error {
 	if err != nil {
 		return err
 	}
-	// defer conn.Close()
 
 	channel, err := rabbitmq.Channel(&m)
 	if err != nil {
 		log.Println(fmt.Sprintf("%s: %s", "Failed to open a channel", err.Error()))
 		return err
 	}
-	// defer channel.Close()
 
 	err = channel.ExchangeDeclare(
 		route.ExchangeName, // name

@@ -192,14 +192,15 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 }
 
 // PublishLog params
-// @context: *gin.Context
-// status: int
-// payload: interface
-// msg: string
-func PublishLog(context *gin.Context, status int, payload interface{}, msg ...string) {
+// 	@context: *gin.Context
+// 	@status: int
+// 	@payload: interface
+// 	@msg: string
+func PublishLog(context *gin.Context, status int, payload interface{}, msg ...string) error {
 	requestBody, err := ioutil.ReadAll(context.Request.Body)
 	if err != nil {
 		log.Println("read body failed " + err.Error())
+		return nil
 	}
 
 	var requestBodyInterface map[string]interface{}
@@ -207,8 +208,10 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 		err = json.Unmarshal(requestBody, &requestBodyInterface)
 		if err != nil {
 			log.Println("unmarshal data failed " + err.Error())
+			return nil
 		}
 	}
+
 	body := &LogData{
 		Request: LogRequest{
 			Method:          context.Request.Method,
@@ -235,6 +238,7 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 	})
 	if err != nil {
 		log.Println("failed on encoding json: " + err.Error())
+		return nil
 	}
 
 	err = publisher.LogRoute.Publish(&publisher.Publish{
@@ -242,5 +246,8 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 	})
 	if err != nil {
 		log.Println("publish data failed " + err.Error())
+		return nil
 	}
+
+	return nil
 }
