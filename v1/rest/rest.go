@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"strconv"
 	"strings"
 
 	"github.com/forkyid/go-utils/v1/logger"
+	publisher "github.com/forkyid/go-utils/v1/rabbitmq/publisher/v1"
 	responseMsg "github.com/forkyid/go-utils/v1/rest/response"
 	uuid "github.com/forkyid/go-utils/v1/uuid"
 	"github.com/gin-gonic/gin"
@@ -76,6 +78,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 	}
 
 	context.JSON(status, response)
+	go PublishLog(context, status, payload, msg[0])
 	return ResponseResult{context, uuid.GetUUID()}
 }
 
@@ -106,6 +109,7 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 	}
 
 	context.JSON(status, response)
+	go PublishLog(context, status, nil, msg[0])
 	return ResponseResult{context, response.Error}
 }
 
@@ -185,4 +189,58 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 	}
 	data := body["body"]
 	return data, err
+}
+
+// PublishLog params
+// @context: *gin.Context
+// status: int
+// payload: interface
+// msg: string
+func PublishLog(context *gin.Context, status int, payload interface{}, msg ...string) {
+	requestBody, err := ioutil.ReadAll(context.Request.Body)
+	if err != nil {
+		log.Println("read body failed " + err.Error())
+	}
+
+	var requestBodyInterface map[string]interface{}
+	if len(requestBody) > 1 {
+		err = json.Unmarshal(requestBody, &requestBodyInterface)
+		if err != nil {
+			log.Println("unmarshal data failed " + err.Error())
+		}
+	}
+	body := &LogData{
+		Request: LogRequest{
+			Method:          context.Request.Method,
+			URL:             context.Request.URL,
+			Header:          context.Request.Header,
+			Body:            requestBodyInterface,
+			Host:            context.Request.Host,
+			Form:            context.Request.Form,
+			PostForm:        context.Request.PostForm,
+			MultipartForm:   context.Request.MultipartForm,
+			RemoteAddr:      context.Request.RemoteAddr,
+			PublicIPAddress: context.ClientIP(),
+			RequestURI:      context.Request.RequestURI,
+		},
+		Response: Response{
+			Body:    payload,
+			Status:  status,
+			Message: msg[0],
+		},
+	}
+
+	data, err := json.Marshal(map[string]interface{}{
+		"payload": body,
+	})
+	if err != nil {
+		log.Println("failed on encoding json: " + err.Error())
+	}
+
+	err = publisher.LogRoute.Publish(&publisher.Publish{
+		Body: string(data),
+	})
+	if err != nil {
+		log.Println("publish data failed " + err.Error())
+	}
 }
