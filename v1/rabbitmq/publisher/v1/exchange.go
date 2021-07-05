@@ -54,6 +54,7 @@ func (route *Route) Publish(publish *Publish) error {
 
 	args := amqp.Table{
 		"x-queue-mode": "lazy",
+		"x-max-priority": 255,
 	}
 	_, err = channel.QueueDeclare(
 		route.QueueName, // queue name

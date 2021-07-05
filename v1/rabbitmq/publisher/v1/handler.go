@@ -9,8 +9,8 @@ import (
 var _ = godotenv.Load()
 
 var LogRoute = Route{
-	ExchangeName: os.Getenv("RABBITMQ_LOG_EXCHANGE"),
+	ExchangeName: os.Getenv("RMQ_AI_LOG_EXCHANGE"),
 	ExchangeType: "topic",
-	RoutingKey:   os.Getenv("RABBITMQ_LOG_ROUTING_KEY"),
-	QueueName:    os.Getenv("RABBITMQ_LOG_QUEUE"),
+	RoutingKey:   os.Getenv("RMQ_AI_LOG_ROUTING_KEY"),
+	QueueName:    os.Getenv("RMQ_AI_LOG_QUEUE"),
 }
