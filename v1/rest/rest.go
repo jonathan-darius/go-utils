@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/forkyid/go-utils/v1/logger"
 	publisher "github.com/forkyid/go-utils/v1/rabbitmq/publisher/v1"
@@ -234,8 +235,11 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 		},
 	}
 
+	location, _ := time.LoadLocation("UTC")
+	utcTime := time.Now().In(location).Format(time.RFC3339Nano)
 	data, err := json.Marshal(map[string]interface{}{
 		"payload": body,
+		"timestamp": utcTime,
 	})
 	if err != nil {
 		log.Println("failed on encoding json: " + err.Error())
