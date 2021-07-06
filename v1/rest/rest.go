@@ -235,7 +235,12 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 		},
 	}
 
-	location, _ := time.LoadLocation("UTC")
+	location, err := time.LoadLocation("UTC")
+	if err != nil {
+		log.Println("failed on get location: " + err.Error())
+		return nil
+	}
+
 	utcTime := time.Now().In(location).Format(time.RFC3339Nano)
 	data, err := json.Marshal(map[string]interface{}{
 		"payload": body,
