@@ -78,8 +78,8 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 		Message: msg[0],
 	}
 
-	context.JSON(status, response)
 	go PublishLog(context, status, payload, msg[0])
+	context.JSON(status, response)
 	return ResponseResult{context, uuid.GetUUID()}
 }
 
@@ -108,9 +108,9 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 	if status < 200 || status > 299 {
 		response.Error = uuid.GetUUID()
 	}
-
-	context.JSON(status, response)
+	
 	go PublishLog(context, status, nil, msg[0])
+	context.JSON(status, response)
 	return ResponseResult{context, response.Error}
 }
 
