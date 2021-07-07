@@ -65,3 +65,9 @@ type UnprocessableEntityResponse struct {
 	Error string `json:"error" example:"Unprocessable Entity"`
 	message
 }
+
+// 423 Locked
+type LockedResponse struct {
+	Error string `json:"error" example:"Status Locked"`
+	message
+}
