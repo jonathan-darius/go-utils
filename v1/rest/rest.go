@@ -78,7 +78,8 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 		Message: msg[0],
 	}
 
-	go PublishLog(context, status, payload, msg[0])
+	var copied gin.Context = *context
+	go PublishLog(&copied, status, payload, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, uuid.GetUUID()}
 }
@@ -109,7 +110,8 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 		response.Error = uuid.GetUUID()
 	}
 	
-	go PublishLog(context, status, nil, msg[0])
+	var copied gin.Context = *context
+	go PublishLog(&copied, status, nil, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, response.Error}
 }
