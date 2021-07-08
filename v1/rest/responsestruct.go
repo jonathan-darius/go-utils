@@ -71,3 +71,9 @@ type LockedResponse struct {
 	Error string `json:"error" example:"Locked"`
 	message
 }
+
+// 500 Internal Server Error
+type InternalServerErrorResponse struct {
+	Error string `json:"error" example:"Internal Server Error"`
+	message
+}
