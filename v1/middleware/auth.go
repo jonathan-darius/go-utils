@@ -124,6 +124,37 @@ func isBanned(ctx *gin.Context) (bool, error) {
 	return true, nil
 }
 
+func isSuspended(ctx *gin.Context, service string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		client, err := jwt.ExtractClient(ctx.GetHeader("Authorization"))
+		if err != nil {
+			rest.ResponseMessage(ctx, http.StatusUnauthorized)
+			ctx.Abort()
+			return
+		}
+		username := client.MemberUsername
+
+		isSuspended, err := cache.IsCacheExists(username + ":" + service)
+		if err != nil {
+			logger.Log("failed on getting suspend data from redis: " + err.Error())
+		}
+		if isSuspended {
+			ttl, err := cache.TTL(username + ":" + service)
+			if err != nil {
+				logger.Log("failed on getting ttl from redis: " + err.Error())
+			} else {
+				rest.ResponseData(ctx, http.StatusLocked, map[string]interface{}{
+					"until": time.Now().Add(time.Second * time.Duration(ttl)).Format("2006-01-02T15:04:05.999Z"),
+				}, "Locked")
+				ctx.Abort()
+				return
+			}
+		}
+
+		ctx.Next()
+	}
+}
+
 func get(es *elastic.Client, id int) (status MemberStatus, err error) {
 	query := elastic.NewMatchQuery("id", aes.Encrypt(id))
 	searchResult, err := es.Search().
