@@ -140,7 +140,7 @@ func IsSuspended(feature string) gin.HandlerFunc {
 				log.Println("failed on getting ttl from redis: " + err.Error())
 			} else {
 				rest.ResponseData(ctx, http.StatusLocked, map[string]interface{}{
-					"until": time.Now().Add(time.Second * time.Duration(ttl)).Format("2006-01-02T15:04:05.999Z"),
+					"until": time.Now().Add(time.Second * time.Duration(ttl)).Format(time.RFC3339),
 				}, "Locked")
 				ctx.Abort()
 				return
