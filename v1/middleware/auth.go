@@ -124,22 +124,17 @@ func isBanned(ctx *gin.Context) (bool, error) {
 	return true, nil
 }
 
-func isSuspended(ctx *gin.Context, service string) gin.HandlerFunc {
+func isSuspended(feature string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		client, err := jwt.ExtractClient(ctx.GetHeader("Authorization"))
-		if err != nil {
-			rest.ResponseMessage(ctx, http.StatusUnauthorized)
-			ctx.Abort()
-			return
-		}
+		client, _ := jwt.ExtractClient(ctx.GetHeader("Authorization"))
 		username := client.MemberUsername
 
-		isSuspended, err := cache.IsCacheExists(username + ":" + service)
+		isSuspended, err := cache.IsCacheExists(username + ":" + feature)
 		if err != nil {
 			logger.Log("failed on getting suspend data from redis: " + err.Error())
 		}
 		if isSuspended {
-			ttl, err := cache.TTL(username + ":" + service)
+			ttl, err := cache.TTL(username + ":" + feature)
 			if err != nil {
 				logger.Log("failed on getting ttl from redis: " + err.Error())
 			} else {
