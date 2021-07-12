@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -131,12 +132,12 @@ func isSuspended(feature string) gin.HandlerFunc {
 
 		isSuspended, err := cache.IsCacheExists(username + ":" + feature)
 		if err != nil {
-			logger.Log("failed on getting suspend data from redis: " + err.Error())
+			log.Println("failed on getting suspend data from redis: " + err.Error())
 		}
 		if isSuspended {
 			ttl, err := cache.TTL(username + ":" + feature)
 			if err != nil {
-				logger.Log("failed on getting ttl from redis: " + err.Error())
+				log.Println("failed on getting ttl from redis: " + err.Error())
 			} else {
 				rest.ResponseData(ctx, http.StatusLocked, map[string]interface{}{
 					"until": time.Now().Add(time.Second * time.Duration(ttl)).Format("2006-01-02T15:04:05.999Z"),
