@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -122,6 +123,32 @@ func isBanned(ctx *gin.Context) (bool, error) {
 		return false, fmt.Errorf("get blocked: status code unexpected: %d", code)
 	}
 	return true, nil
+}
+
+func IsSuspended(feature string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		client, _ := jwt.ExtractClient(ctx.GetHeader("Authorization"))
+		username := client.MemberUsername
+
+		isSuspended, err := cache.IsCacheExists(username + ":" + feature)
+		if err != nil {
+			log.Println("failed on getting suspend data from redis: " + err.Error())
+		}
+		if isSuspended {
+			ttl, err := cache.TTL(username + ":" + feature)
+			if err != nil {
+				log.Println("failed on getting ttl from redis: " + err.Error())
+			} else {
+				rest.ResponseData(ctx, http.StatusLocked, map[string]interface{}{
+					"until": time.Now().Add(time.Second * time.Duration(ttl)).Format(time.RFC3339),
+				}, "Locked")
+				ctx.Abort()
+				return
+			}
+		}
+
+		ctx.Next()
+	}
 }
 
 func get(es *elastic.Client, id int) (status MemberStatus, err error) {
