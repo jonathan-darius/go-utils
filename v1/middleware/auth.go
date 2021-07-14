@@ -125,7 +125,7 @@ func isBanned(ctx *gin.Context) (bool, error) {
 	return true, nil
 }
 
-func IsSuspended(feature string) gin.HandlerFunc {
+func (Middleware) IsSuspended(feature string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		client, _ := jwt.ExtractClient(ctx.GetHeader("Authorization"))
 		username := client.MemberUsername
