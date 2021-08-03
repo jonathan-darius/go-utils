@@ -245,6 +245,7 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 
 	utcTime := time.Now().In(location).Format(time.RFC3339Nano)
 	data, err := json.Marshal(map[string]interface{}{
+		"SERVICE_NAME": os.Getenv("SERVICE_NAME"),
 		"payload": body,
 		"timestamp": utcTime,
 	})
