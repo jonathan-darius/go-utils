@@ -69,6 +69,17 @@ func (route *Route) Publish(publish *Publish) error {
 		return err
 	}
 
+	err = channel.QueueBind(
+		route.QueueName,	// queue name
+		route.RoutingKey,	// routing key
+		route.ExchangeName, // exchange
+		false,				// no-wait
+		nil,				// arguments
+	)
+	if err != nil {
+		log.Println(fmt.Sprintf("%s: %s", "Failed to bind a queue", err.Error()))
+	}
+
 	err = channel.Publish(
 		route.ExchangeName, // exchange name
 		route.RoutingKey,   // Routing key
