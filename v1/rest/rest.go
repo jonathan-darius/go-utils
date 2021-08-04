@@ -24,7 +24,7 @@ import (
 
 // Response types
 type Response struct {
-	Body    interface{}       `json:"body,omitempty"`
+	Result  interface{}       `json:"result,omitempty"`
 	Error   string            `json:"error,omitempty"`
 	Message string            `json:"message,omitempty"`
 	Detail  map[string]string `json:"detail,omitempty"`
@@ -91,7 +91,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 	}
 
 	response := Response{
-		Body:    payload,
+		Result:  payload,
 		Message: msg[0],
 	}
 
@@ -127,7 +127,7 @@ func ResponsePagination(context *gin.Context, status int, params ResponsePaginat
 	}
 
 	response := Response{
-		Body: ResponsePaginationResult{
+		Result: ResponsePaginationResult{
 			Data:      params.Data,
 			TotalData: params.TotalData,
 			Page:      params.Pagination.Page,
@@ -289,7 +289,7 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 			RequestURI:      context.Request.RequestURI,
 		},
 		Response: Response{
-			Body:    payload,
+			Result:  payload,
 			Status:  status,
 			Message: msg[0],
 		},
