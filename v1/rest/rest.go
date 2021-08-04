@@ -241,14 +241,14 @@ func MultipartForm(fileKey string, files [][]byte, params map[string]string, mul
 	return body, writer.FormDataContentType()
 }
 
-// GetData unwraps "body" object
+// GetData unwraps "result" object
 func GetData(jsonBody []byte) (json.RawMessage, error) {
 	body := map[string]json.RawMessage{}
 	err := json.Unmarshal(jsonBody, &body)
 	if err != nil {
 		return nil, err
 	}
-	data := body["body"]
+	data := body["result"]
 	return data, err
 }
 
