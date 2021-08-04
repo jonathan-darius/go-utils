@@ -7,11 +7,13 @@ import (
 	"io/ioutil"
 	"log"
 	"mime/multipart"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/forkyid/go-utils/v1/logger"
+	"github.com/forkyid/go-utils/v1/pagination"
 	publisher "github.com/forkyid/go-utils/v1/rabbitmq/publisher/v1"
 	responseMsg "github.com/forkyid/go-utils/v1/rest/response"
 	uuid "github.com/forkyid/go-utils/v1/uuid"
@@ -27,6 +29,21 @@ type Response struct {
 	Message string            `json:"message,omitempty"`
 	Detail  map[string]string `json:"detail,omitempty"`
 	Status  int               `json:"status,omitempty"`
+}
+
+// ResponsePaginationResult types
+type ResponsePaginationResult struct {
+	Data      interface{} `json:"data"`
+	TotalData int         `json:"total_data"`
+	Page      int         `json:"page"`
+	TotalPage int         `json:"total_page"`
+}
+
+// ResponsePaginationParams types
+type ResponsePaginationParams struct {
+	Data       interface{}
+	TotalData  int
+	Pagination *pagination.Pagination
 }
 
 // ResponseResult types
@@ -84,6 +101,47 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 	return ResponseResult{context, uuid.GetUUID()}
 }
 
+// ResponsePagination params
+// @context: *gin.Context
+// @status: int
+// @params: ResponsePaginationParams
+// return ResponseResult
+func ResponsePagination(context *gin.Context, status int, params ResponsePaginationParams) ResponseResult {
+	var msg string
+	if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
+		log.Println("default message for status code " + strconv.Itoa(status) + " not found")
+		log.Println("proceeding with empty message...")
+		msg = ""
+	} else {
+		msg = defaultMessage.(string)
+	}
+
+	if params.Pagination == nil {
+		log.Println("proceeding with default pagination value")
+		params.Pagination = &pagination.Pagination{}
+		params.Pagination.Paginate()
+	}
+
+	if params.TotalData == 0 {
+		log.Println("proceeding with 0 total_data...")
+	}
+
+	response := Response{
+		Body: ResponsePaginationResult{
+			Data:      params.Data,
+			TotalData: params.TotalData,
+			Page:      params.Pagination.Page,
+			TotalPage: params.TotalData / params.Pagination.Limit,
+		},
+		Message: msg,
+	}
+
+	var copied gin.Context = *context
+	PublishLog(&copied, status, params.Data, msg)
+	context.JSON(status, response)
+	return ResponseResult{context, uuid.GetUUID()}
+}
+
 // ResponseMessage params
 // @context: *gin.Context
 // status: int
@@ -109,7 +167,7 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 	if status < 200 || status > 299 {
 		response.Error = uuid.GetUUID()
 	}
-	
+
 	var copied gin.Context = *context
 	PublishLog(&copied, status, nil, msg[0])
 	context.JSON(status, response)
@@ -246,8 +304,8 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 	utcTime := time.Now().In(location).Format(time.RFC3339Nano)
 	data, err := json.Marshal(map[string]interface{}{
 		"service_name": os.Getenv("SERVICE_NAME"),
-		"payload": body,
-		"timestamp": utcTime,
+		"payload":      body,
+		"timestamp":    utcTime,
 	})
 	if err != nil {
 		log.Println("failed on encoding json: " + err.Error())
