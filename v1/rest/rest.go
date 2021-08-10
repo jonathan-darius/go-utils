@@ -267,7 +267,7 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 
 	contentType := context.GetHeader("Content-Type")
 	var requestBodyInterface map[string]interface{}
-	if contentType == "application/json" && len(requestBody) > 1 {
+	if contentType == "application/json" && len(requestBody) > 0 {
 		err = json.Unmarshal(requestBody, &requestBodyInterface)
 		if err != nil {
 			log.Println("unmarshal data failed " + err.Error())
