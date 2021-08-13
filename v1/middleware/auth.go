@@ -152,6 +152,11 @@ func (Middleware) IsSuspended(feature string) gin.HandlerFunc {
 }
 
 func get(es *elastic.Client, id int) (status MemberStatus, err error) {
+	if es == nil {
+		err = errors.New("nil elastic client")
+		return
+	}
+
 	query := elastic.NewMatchQuery("id", aes.Encrypt(id))
 	searchResult, err := es.Search().
 		Index("users").
