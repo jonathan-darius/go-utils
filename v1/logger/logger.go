@@ -82,13 +82,13 @@ func log(fields logrus.Fields, errMsg string) {
 }
 
 // LogWithContext params
-// 	@c: *gin.Context
+// 	@ctx: *gin.Context
 //	@uuid: string
 // 	@errMsg: string
-func LogWithContext(c *gin.Context, uuid, errMsg string) {
-	req := c.Request
+func LogWithContext(ctx *gin.Context, uuid, errMsg string) {
+	req := ctx.Request
 	payload := map[string]string{}
-	for _, p := range c.Params {
+	for _, p := range ctx.Params {
 		payload[p.Key] = p.Value
 	}
 
@@ -96,7 +96,7 @@ func LogWithContext(c *gin.Context, uuid, errMsg string) {
 		"Key":         uuid,
 		"ServiceName": os.Getenv("SERVICE_NAME"),
 		"Payload":     payload,
-		"StatusCode":  c.Writer.Status(),
+		"StatusCode":  ctx.Writer.Status(),
 	}
 
 	if req != nil {
