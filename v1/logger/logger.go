@@ -7,29 +7,36 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"time"
+	"text/template"
 
 	"net"
 	"strings"
 
 	"github.com/forkyid/go-utils/v1/uuid"
 	"github.com/gin-gonic/gin"
-	"github.com/olivere/elastic"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/sohlich/elogrus.v3"
 )
 
-// Init initialize logger
-func Init() {
-	if os.Getenv("ENV") == "production" {
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-		logrus.SetOutput(os.Stdout)
-	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp: true,
-			ForceColors:   true,
-		})
+var l *logrus.Logger
+
+// logger func
+// 	return *logrus.Logger
+func logger() *logrus.Logger {
+	if l == nil {
+		l = logrus.New()
+		if os.Getenv("ENV") == "production" {
+			l.SetFormatter(&logrus.JSONFormatter{})
+			l.SetOutput(os.Stdout)
+		} else {
+			l.SetFormatter(&logrus.TextFormatter{
+				FullTimestamp: true,
+				ForceColors:   true,
+				DisableQuote:  true,
+			})
+		}
 	}
+
+	return l
 }
 
 // realIP get the real IP from http request
@@ -45,56 +52,43 @@ func realIP(req *http.Request) string {
 	return ra
 }
 
-func log(service string, fields logrus.Fields, errMsg string) {
-	logger := logrus.New()
+// log params
+// 	@fields: logrus.Fields
+// 	@errMsg: string
+func log(fields logrus.Fields, errMsg string) {
+	logger := logger()
 
-	client, err := elastic.NewClient(
-		elastic.SetSniff(false),
-		elastic.SetURL(os.Getenv("ELASTICSEARCH_HOST")),
-	)
-	if err != nil {
-		logger.Println("logger: ", err.Error())
-		logger.Println(errMsg)
-		return
-	}
-
-	hook, err := elogrus.NewAsyncElasticHook(
-		client,
-		os.Getenv("ELASTICSEARCH_HOST"),
-		logrus.DebugLevel,
-		service,
-	)
-	if err != nil {
-		logger.Println("logger: ", err.Error())
-		logger.Println(errMsg)
-		return
-	}
-	logger.Hooks.Add(hook)
-
-	start := time.Now()
-	latency := time.Since(start)
-	fields["ResponseTime"] = latency
-
-	// get the callers (depth 2)
 	stack := ""
-	indent := ""
+	ut, _ := template.New("stack").Parse("\n\t{{ .Name }} {{ .File }}#{{ .Line }}")
 	for i := 3; i > 1; i-- {
 		pc, file, line, ok := runtime.Caller(i)
 		if ok {
-			stack += fmt.Sprintf("%s%s %s#%d\n", indent, runtime.FuncForPC(pc).Name(), file, line)
+			buf := new(bytes.Buffer)
+			ut.Execute(buf, struct {
+				Name string
+				File string
+				Line int
+			}{
+				Name: runtime.FuncForPC(pc).Name(),
+				File: file,
+				Line: line,
+			})
+			stack += buf.String()
 		}
-		indent += "\t"
 	}
 	fields["Trace"] = stack
 
 	logger.WithFields(fields).Error(errMsg)
 }
 
-// LogWithContext for api
-func LogWithContext(c *gin.Context, uuid, errMsg string) {
-	req := c.Request
+// LogWithContext params
+// 	@ctx: *gin.Context
+//	@uuid: string
+// 	@errMsg: string
+func LogWithContext(ctx *gin.Context, uuid, errMsg string) {
+	req := ctx.Request
 	payload := map[string]string{}
-	for _, p := range c.Params {
+	for _, p := range ctx.Params {
 		payload[p.Key] = p.Value
 	}
 
@@ -102,7 +96,7 @@ func LogWithContext(c *gin.Context, uuid, errMsg string) {
 		"Key":         uuid,
 		"ServiceName": os.Getenv("SERVICE_NAME"),
 		"Payload":     payload,
-		"StatusCode":  c.Writer.Status(),
+		"StatusCode":  ctx.Writer.Status(),
 	}
 
 	if req != nil {
@@ -112,17 +106,18 @@ func LogWithContext(c *gin.Context, uuid, errMsg string) {
 		fields["RemoteAddress"] = req.Header.Get("X-Request-Id")
 	}
 
-	log("service-logger", fields, errMsg)
+	log(fields, errMsg)
 }
 
-// Log for consumer
+// Log params
+//	@errMsg: string
 func Log(errMsg string) {
 	fields := logrus.Fields{
 		"Key":         uuid.GetUUID(),
 		"ServiceName": os.Getenv("SERVICE_NAME"),
 	}
 
-	log("service-consumer-logger", fields, errMsg)
+	log(fields, errMsg)
 }
 
 // LogUserActivity for CMS user activity
