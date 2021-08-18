@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,7 +14,6 @@ import (
 	"github.com/forkyid/go-utils/v1/rest"
 	"github.com/forkyid/go-utils/v1/uuid"
 	"github.com/go-redis/redis"
-	"github.com/mitchellh/mapstructure"
 	"github.com/olivere/elastic/v7"
 	"github.com/pkg/errors"
 
@@ -44,11 +41,6 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 	}
 
 	if err != nil || err == redis.Nil {
-		status, err := get(es, memberID)
-		if err != nil {
-			return status, errors.Wrap(err, "get member data from: es")
-		}
-
 		status.IsBanned, err = isBanned(ctx)
 		if err != nil {
 			return status, errors.Wrap(err, "check banned")
@@ -149,39 +141,4 @@ func (Middleware) IsSuspended(feature string) gin.HandlerFunc {
 
 		ctx.Next()
 	}
-}
-
-func get(es *elastic.Client, id int) (status MemberStatus, err error) {
-	if es == nil {
-		err = errors.New("nil elastic client")
-		return
-	}
-
-	query := elastic.NewMatchQuery("id", aes.Encrypt(id))
-	searchResult, err := es.Search().
-		Index("users").
-		Type("_doc").
-		Query(query).
-		Do(context.Background())
-
-	if err != nil {
-		return status, errors.Wrap(err, "elastic")
-	}
-
-	if searchResult == nil || searchResult.TotalHits() == 0 {
-		return status, errors.Wrap(err, "member not found")
-	}
-
-	user := map[string]interface{}{}
-	err = json.Unmarshal(searchResult.Hits.Hits[0].Source, &user)
-	if err != nil {
-		return status, errors.Wrap(err, "unmarshal")
-	}
-
-	err = mapstructure.Decode(user["status"], &status)
-	if err != nil {
-		return status, errors.Wrap(err, "mapstructure.Decode")
-	}
-
-	return status, nil
 }
