@@ -12,34 +12,12 @@ import (
 var conn *amqp.Connection
 var channel *amqp.Channel
 
-func Channel(m *sync.Mutex) (*amqp.Channel, error) {
-	if conn == nil {
-		var err error
-		conn, err = Start(m)
-		if err != nil {
-			return nil, err
-		}
-	}
-	m.Lock()
-
-	if channel == nil {
-		var err error
-		channel, err = conn.Channel()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	m.Unlock()
-	return channel, nil
-}
-
-func Start(m *sync.Mutex) (*amqp.Connection, error) {
+func Start(m *sync.Mutex) (*amqp.Channel, error) {
 	m.Lock()
 	defer m.Unlock()
 
-	if conn == nil || conn.IsClosed() {
-		var err error
+	var err error
+	if conn == nil {
 		if os.Getenv("RABBITMQ_PORT") == "" {
 			os.Setenv("RABBITMQ_PORT", "5672")
 		}
@@ -56,8 +34,38 @@ func Start(m *sync.Mutex) (*amqp.Connection, error) {
 			log.Println(fmt.Sprintf("%s: %s", "Failed to connect to RabbitMQ", err.Error()))
 			return nil, err
 		}
-		fmt.Println("successfully connected to RabbitMQ")
+
+		channel, err = conn.Channel()
+		if err != nil {
+			log.Println("Failed to open RabbitMQ channel:", err.Error())
+			return nil, err
+		}
+
+		go func() {
+			errChan := conn.NotifyClose(make(chan *amqp.Error))
+			for {
+				if <-errChan != nil {
+					log.Println("RabbitMQ connection closed")
+					conn = nil
+					return
+				}
+			}
+		}()
+
+		go func() {
+			errChan := channel.NotifyClose(make(chan *amqp.Error))
+			for {
+				if <-errChan != nil {
+					log.Println("RabbitMQ channel closed")
+					conn = nil
+					return
+				}
+			}
+		}()
+
+		fmt.Println("Successfully connected to RabbitMQ")
+
 	}
 
-	return conn, nil
+	return channel, err
 }

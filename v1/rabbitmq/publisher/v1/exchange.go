@@ -27,14 +27,9 @@ var m sync.Mutex
 
 // Publish sends message to message broker
 func (route *Route) Publish(publish *Publish) error {
-	_, err := rabbitmq.Start(&m)
+	channel, err := rabbitmq.Start(&m)
 	if err != nil {
-		return err
-	}
-
-	channel, err := rabbitmq.Channel(&m)
-	if err != nil {
-		log.Println(fmt.Sprintf("%s: %s", "Failed to open a channel", err.Error()))
+		log.Println(fmt.Sprintf("%s: %s", "Failed to Connect to RabbitMQ", err.Error()))
 		return err
 	}
 
