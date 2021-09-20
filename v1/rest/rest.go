@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/forkyid/go-utils/v1/logger"
+	publisher "github.com/forkyid/go-utils/v1/nsq/publisher/v1"
 	"github.com/forkyid/go-utils/v1/pagination"
-	publisher "github.com/forkyid/go-utils/v1/rabbitmq/publisher/v1"
 	responseMsg "github.com/forkyid/go-utils/v1/rest/response"
 	uuid "github.com/forkyid/go-utils/v1/uuid"
 	"github.com/gin-gonic/gin"
@@ -95,8 +95,8 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 		Message: msg[0],
 	}
 
-	// var copied gin.Context = *context
-	// PublishLog(&copied, status, payload, msg[0])
+	var copied gin.Context = *context
+	PublishLog(&copied, status, payload, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, uuid.GetUUID()}
 }
@@ -136,8 +136,8 @@ func ResponsePagination(context *gin.Context, status int, params ResponsePaginat
 		Message: msg,
 	}
 
-	// var copied gin.Context = *context
-	// PublishLog(&copied, status, params.Data, msg)
+	var copied gin.Context = *context
+	PublishLog(&copied, status, params.Data, msg)
 	context.JSON(status, response)
 	return ResponseResult{context, uuid.GetUUID()}
 }
@@ -168,8 +168,8 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 		response.Error = uuid.GetUUID()
 	}
 
-	// var copied gin.Context = *context
-	// PublishLog(&copied, status, nil, msg[0])
+	var copied gin.Context = *context
+	PublishLog(&copied, status, nil, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, response.Error}
 }
@@ -313,9 +313,7 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 		return nil
 	}
 
-	err = publisher.LogRoute.Publish(&publisher.Publish{
-		Body: string(data),
-	})
+	err = publisher.Publish(data)
 	if err != nil {
 		log.Println("publish data failed " + err.Error())
 		return nil
