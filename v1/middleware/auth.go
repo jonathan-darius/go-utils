@@ -63,7 +63,6 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 		rest.ResponseError(ctx, http.StatusUnauthorized, map[string]string{
 			"access_token": "expired",
 		})
-		log.Println("access_token:", err.Error())
 		ctx.Abort()
 		return
 	}
