@@ -60,7 +60,9 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 func (mid *Middleware) Auth(ctx *gin.Context) {
 	id, err := jwt.ExtractID(ctx.GetHeader("Authorization"))
 	if err != nil {
-		rest.ResponseMessage(ctx, http.StatusUnauthorized)
+		rest.ResponseError(ctx, http.StatusUnauthorized, map[string]string{
+			"access_token": "expired",
+		})
 		ctx.Abort()
 		return
 	}
@@ -120,7 +122,7 @@ func isBanned(ctx *gin.Context) (bool, error) {
 func (Middleware) IsSuspended(feature string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		client, _ := jwt.ExtractClient(ctx.GetHeader("Authorization"))
-		username := client.MemberUsername
+		username := client.Username
 
 		isSuspended, err := cache.IsCacheExists(username + ":" + feature)
 		if err != nil {
