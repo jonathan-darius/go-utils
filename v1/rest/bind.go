@@ -34,7 +34,7 @@ func BindJSON(ctx *gin.Context, v interface{}) (err error) {
 // 	@v: interface{}
 // 	return error
 func BindQuery(ctx *gin.Context, v interface{}) (err error) {
-	return ctx.BindQuery(&v)
+	return ctx.BindQuery(v)
 }
 
 // @BindFormData params
