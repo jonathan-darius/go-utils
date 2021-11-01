@@ -124,10 +124,10 @@ func initializeCMS() {
 
 	hd = hashids.NewData()
 	salt = os.Getenv("AES_KEY_CMS")
-	minLengthStr := os.Getenv("AES_MIN_LENGTH")
+	minLengthStr := os.Getenv("AES_MIN_LENGTH_CMS")
 
 	if salt == "" || minLengthStr == "" {
-		log.Println("aes: env not found: AES_KEY_CMS or AES_MIN_LENGTH")
+		log.Println("aes: env not found: AES_KEY_CMS or AES_MIN_LENGTH_CMS")
 	}
 
 	minLength, _ = strconv.Atoi(minLengthStr)
