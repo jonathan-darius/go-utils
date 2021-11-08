@@ -17,6 +17,10 @@ var hd *hashids.HashIDData
 var salt string
 var minLength int
 
+var hdCMS *hashids.HashIDData
+var saltCMS string
+var minLengthCMS int
+
 func initialize() {
 	if hd != nil {
 		return
@@ -118,40 +122,40 @@ func DecryptString(data []byte) ([]byte, error) {
 }
 
 func initializeCMS() {
-	if hd != nil {
+	if hdCMS != nil {
 		return
 	}
 
-	hd = hashids.NewData()
-	salt = os.Getenv("AES_KEY_CMS")
-	minLengthStr := os.Getenv("AES_MIN_LENGTH_CMS")
+	hdCMS = hashids.NewData()
+	saltCMS = os.Getenv("AES_KEY_CMS")
+	minLengthStrCMS := os.Getenv("AES_MIN_LENGTH_CMS")
 
-	if salt == "" || minLengthStr == "" {
+	if saltCMS == "" || minLengthStrCMS == "" {
 		log.Println("aes: env not found: AES_KEY_CMS or AES_MIN_LENGTH_CMS")
 	}
 
-	minLength, _ = strconv.Atoi(minLengthStr)
+	minLengthCMS, _ = strconv.Atoi(minLengthStrCMS)
 }
 
 // EncryptCMS Function
 func EncryptCMS(id int) string {
 	initializeCMS()
-	hd.Salt = salt
-	hd.MinLength = minLength
-	h, _ := hashids.NewWithData(hd)
-	encoded, _ := h.Encode([]int{id})
-	return encoded
+	hdCMS.Salt = saltCMS
+	hdCMS.MinLength = minLengthCMS
+	hCMS, _ := hashids.NewWithData(hdCMS)
+	encodedCMS, _ := hCMS.Encode([]int{id})
+	return encodedCMS
 }
 
 // DecryptCMS Function
 func DecryptCMS(data string) int {
 	initializeCMS()
-	hd.Salt = salt
-	hd.MinLength = minLength
-	h, _ := hashids.NewWithData(hd)
-	d, err := h.DecodeWithError(data)
-	if err != nil || len(d) < 1 {
+	hdCMS.Salt = saltCMS
+	hdCMS.MinLength = minLengthCMS
+	hCMS, _ := hashids.NewWithData(hdCMS)
+	decryptedCMS, err := hCMS.DecodeWithError(data)
+	if err != nil || len(decryptedCMS) < 1 {
 		return -1
 	}
-	return d[0]
+	return decryptedCMS[0]
 }
