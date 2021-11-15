@@ -58,7 +58,14 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 }
 
 func (mid *Middleware) Auth(ctx *gin.Context) {
-	id, err := jwt.ExtractID(ctx.GetHeader("Authorization"))
+	auth := ctx.GetHeader("Authorization")
+	if auth == "" {
+		rest.ResponseMessage(ctx, http.StatusUnauthorized)
+		ctx.Abort()
+		return
+	}
+
+	id, err := jwt.ExtractID(auth)
 	if err != nil {
 		rest.ResponseError(ctx, http.StatusUnauthorized, map[string]string{
 			"access_token": "expired",
