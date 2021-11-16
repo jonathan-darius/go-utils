@@ -58,8 +58,16 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 }
 
 func (mid *Middleware) Auth(ctx *gin.Context) {
-	id, err := jwt.ExtractID(ctx.GetHeader("Authorization"))
+	auth := ctx.GetHeader("Authorization")
+	if auth == "" {
+		rest.ResponseMessage(ctx, http.StatusUnauthorized)
+		ctx.Abort()
+		return
+	}
+
+	id, err := jwt.ExtractID(auth)
 	if err != nil {
+		log.Println("extract id: " + err.Error())
 		rest.ResponseError(ctx, http.StatusUnauthorized, map[string]string{
 			"access_token": "expired",
 		})
@@ -69,8 +77,8 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 
 	status, err := GetStatus(ctx, mid.elastic, id)
 	if err != nil {
-		rest.ResponseMessage(ctx, http.StatusInternalServerError).
-			Log("auth: " + err.Error())
+		log.Println("get status: " + err.Error())
+		rest.ResponseMessage(ctx, http.StatusInternalServerError)
 		ctx.Abort()
 		return
 	}
