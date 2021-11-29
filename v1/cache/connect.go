@@ -20,16 +20,13 @@ func ConnectCache() {
 	})
 }
 
-// isCacheConnected func
+// IsCacheConnected func
 // return bool
-func isCacheConnected() bool {
+func IsCacheConnected() (isAlive bool) {
 	if redisClient == nil {
 		ConnectCache()
 	}
-	if redisClient.Ping().Val() == "PONG" {
-		return true
-	}
-	ConnectCache()
+
 	return redisClient.Ping().Val() == "PONG"
 }
 
