@@ -29,6 +29,10 @@ type MemberStatus struct {
 
 func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status MemberStatus, err error) {
 	isAlive := cache.IsCacheConnected()
+	if !isAlive {
+		log.Printf("redis connect failed: %s\n", os.Getenv("REDIS_HOST"))
+	}
+
 	statusKey := cache.ExternalKey("global", MemberStatusKey{
 		ID: aes.Encrypt(memberID),
 	})
