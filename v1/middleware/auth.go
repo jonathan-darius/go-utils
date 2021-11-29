@@ -10,14 +10,11 @@ import (
 	"github.com/forkyid/go-utils/v1/aes"
 	"github.com/forkyid/go-utils/v1/cache"
 	"github.com/forkyid/go-utils/v1/jwt"
-	"github.com/forkyid/go-utils/v1/logger"
 	"github.com/forkyid/go-utils/v1/rest"
-	"github.com/forkyid/go-utils/v1/uuid"
+	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"github.com/olivere/elastic/v7"
 	"github.com/pkg/errors"
-
-	"github.com/gin-gonic/gin"
 )
 
 type MemberStatusKey struct {
@@ -31,30 +28,35 @@ type MemberStatus struct {
 }
 
 func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status MemberStatus, err error) {
+	isAlive := cache.IsCacheConnected()
 	statusKey := cache.ExternalKey("global", MemberStatusKey{
 		ID: aes.Encrypt(memberID),
 	})
 
-	err = cache.GetUnmarshal(statusKey, &status, 600)
-	if err != nil && err != redis.Nil {
-		logger.LogWithContext(ctx, uuid.GetUUID(), errors.Wrap(err, "redis").Error())
+	if isAlive {
+		err = cache.GetUnmarshal(statusKey, &status, 600)
+		if err == nil {
+			return
+		}
+		if err != nil && err != redis.Nil {
+			log.Println("redis get unmarshal: " + err.Error())
+		}
 	}
 
-	if err != nil || err == redis.Nil {
-		status.IsBanned, err = isBanned(ctx)
-		if err != nil {
-			return status, errors.Wrap(err, "check banned")
-		}
+	status.IsBanned, err = isBanned(ctx)
+	if err != nil {
+		err = errors.Wrap(err, "check banned")
+		return
+	}
 
+	if isAlive {
 		err = cache.SetJSON(statusKey, status, 600)
 		if err != nil {
-			logger.LogWithContext(ctx, uuid.GetUUID(), errors.Wrap(err, "redis set").Error())
+			log.Println("redis set: " + err.Error())
 		}
-
-		return status, nil
 	}
 
-	return status, nil
+	return
 }
 
 func (mid *Middleware) Auth(ctx *gin.Context) {
@@ -125,30 +127,4 @@ func isBanned(ctx *gin.Context) (bool, error) {
 		return false, fmt.Errorf("get blocked: status code unexpected: %d", code)
 	}
 	return true, nil
-}
-
-func (Middleware) IsSuspended(feature string) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		client, _ := jwt.ExtractClient(ctx.GetHeader("Authorization"))
-		username := client.Username
-
-		isSuspended, err := cache.IsCacheExists(username + ":" + feature)
-		if err != nil {
-			log.Println("failed on getting suspend data from redis: " + err.Error())
-		}
-		if isSuspended {
-			ttl, err := cache.TTL(username + ":" + feature)
-			if err != nil {
-				log.Println("failed on getting ttl from redis: " + err.Error())
-			} else {
-				rest.ResponseData(ctx, http.StatusLocked, map[string]interface{}{
-					"until": time.Now().Add(time.Second * time.Duration(ttl)).Format(time.RFC3339),
-				}, "Locked")
-				ctx.Abort()
-				return
-			}
-		}
-
-		ctx.Next()
-	}
 }

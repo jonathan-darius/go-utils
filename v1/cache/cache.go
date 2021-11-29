@@ -15,7 +15,7 @@ import (
 // @key: string
 // return interface{}, error
 func Get(key string, seconds ...int) (interface{}, error) {
-	if isCacheConnected() == false {
+	if !IsCacheConnected() {
 		return nil, fmt.Errorf("redis connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
 
@@ -51,7 +51,7 @@ func GetUnmarshal(key string, target interface{}, seconds ...int) error {
 	if reflect.ValueOf(target).Kind() != reflect.Ptr {
 		fmt.Println("unmarshal target is not a pointer")
 	}
-	if isCacheConnected() == false {
+	if !IsCacheConnected() {
 		return fmt.Errorf("redis connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
 
@@ -84,7 +84,7 @@ func GetUnmarshal(key string, target interface{}, seconds ...int) error {
 // @seconds: int
 // return error
 func SetJSON(key string, value interface{}, seconds int) error {
-	if isCacheConnected() == false {
+	if !IsCacheConnected() {
 		return fmt.Errorf("redis connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
 
@@ -102,7 +102,7 @@ func SetJSON(key string, value interface{}, seconds int) error {
 // @key: string
 // return bool, error
 func IsCacheExists(key string) (bool, error) {
-	if isCacheConnected() == false {
+	if !IsCacheConnected() {
 		return false, fmt.Errorf("redis connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
 
@@ -120,7 +120,7 @@ func IsCacheExists(key string) (bool, error) {
 // @seconds: int
 // return error
 func SetExpire(key string, seconds int) error {
-	if isCacheConnected() == false {
+	if !IsCacheConnected() {
 		return fmt.Errorf("redis connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
 	client := getRedisClient()
@@ -135,7 +135,7 @@ func SetExpire(key string, seconds int) error {
 // @key: string
 // return error
 func Delete(key ...string) error {
-	if isCacheConnected() == false {
+	if !IsCacheConnected() {
 		return fmt.Errorf("redis connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
 
@@ -151,7 +151,7 @@ func Delete(key ...string) error {
 // @key: string
 // return error
 func Purge(key string) error {
-	if isCacheConnected() == false {
+	if !IsCacheConnected() {
 		return fmt.Errorf("redis connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
 
@@ -177,7 +177,7 @@ func Purge(key string) error {
 // @key: string
 // return float64, error
 func TTL(key string) (float64, error) {
-	if isCacheConnected() == false {
+	if !IsCacheConnected() {
 		return 0, fmt.Errorf("redis connect failed: %s", os.Getenv("REDIS_HOST"))
 	}
 
