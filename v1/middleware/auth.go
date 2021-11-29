@@ -38,7 +38,7 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 		if err == nil {
 			return
 		}
-		if err != nil && err != redis.Nil {
+		if err != redis.Nil {
 			log.Println("redis get unmarshal: " + err.Error())
 		}
 	}
