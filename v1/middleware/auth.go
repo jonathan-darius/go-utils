@@ -38,8 +38,14 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 	})
 
 	if isAlive {
-		err = cache.GetUnmarshal(statusKey, &status, 600)
+		err = cache.GetUnmarshal(statusKey, &status)
 		if err == nil {
+			if status.SuspendEnd != nil && status.SuspendEnd.After(time.Now().Add(5*time.Minute)) {
+				suspendEnd := time.Until(*status.SuspendEnd)
+				cache.SetExpire(statusKey, int(suspendEnd.Seconds()))
+			} else {
+				cache.SetExpire(statusKey, 600)
+			}
 			return
 		}
 		if err != redis.Nil {
