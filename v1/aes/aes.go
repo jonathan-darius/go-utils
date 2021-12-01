@@ -159,3 +159,25 @@ func DecryptCMS(data string) int {
 	}
 	return decryptedCMS[0]
 }
+
+// DecryptCMSBulk Function
+func DecryptCMSBulk(data []string) (ret []int, err error) {
+	ret = make([]int, len(data))
+	for i := range data {
+		decrypted := DecryptCMS(data[i])
+		if decrypted <= 0 {
+			return nil, fmt.Errorf("DecryptCMS failed")
+		}
+		ret[i] = decrypted
+	}
+	return ret, nil
+}
+
+// EncryptCMSBulk Function
+func EncryptCMSBulk(data []int) (ret []string) {
+	ret = make([]string, len(data))
+	for i := range data {
+		ret[i] = EncryptCMS(data[i])
+	}
+	return ret
+}
