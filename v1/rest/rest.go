@@ -296,13 +296,13 @@ func PublishLog(context *gin.Context, status int, payload interface{}, msg ...st
 		},
 	}
 
-	location, err := time.LoadLocation("Asia/Jakarta")
+	location, err := time.LoadLocation(os.Getenv("SERVER_TIMEZONE"))
 	if err != nil {
 		log.Println("failed on get location: " + err.Error())
 		return nil
 	}
 
-	timestamp := time.Now().In(location).Format(time.RFC3339Nano)
+	timestamp := time.Now().In(location).Unix()
 	data, err := json.Marshal(map[string]interface{}{
 		"service_name": os.Getenv("SERVICE_NAME"),
 		"payload":      body,
