@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -137,4 +138,37 @@ func isBanned(ctx *gin.Context) (bool, error) {
 		return false, fmt.Errorf("get blocked: status code unexpected: %d", code)
 	}
 	return true, nil
+}
+
+// CheckWaitingStatus params
+//	@ctx: *gin.Context
+func (m *Middleware) CheckWaitingStatus(ctx *gin.Context) {
+	if err := m.elastic.WaitForYellowStatus("1s"); err != nil {
+		log.Println("ERROR: wait for yellow status: " + err.Error())
+		return
+	}
+
+	result, err := m.elastic.Get().
+		Index("waiting-list").
+		Id("status").
+		Do(ctx)
+	if err != nil {
+		log.Println("ERROR: get waiting list status: " + err.Error())
+		return
+	}
+
+	resultStruct := map[string]bool{}
+
+	if !result.Found {
+		log.Println("ERROR: waiting list status not found: " + err.Error())
+		return
+	}
+
+	json.Unmarshal(result.Source, &resultStruct)
+	isWait := resultStruct["status"]
+
+	if isWait {
+		rest.ResponseMessage(ctx, http.StatusServiceUnavailable, "Service Unavailable")
+		ctx.Abort()
+	}
 }
