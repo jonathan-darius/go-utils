@@ -20,4 +20,5 @@ func NewMiddleware(
 type Middlewarer interface {
 	Auth(ctx *gin.Context)
 	CORS(ctx *gin.Context)
+	CheckWaitingStatus(ctx *gin.Context)
 }
