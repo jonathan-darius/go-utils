@@ -7,15 +7,14 @@ import (
 	"io/ioutil"
 	"log"
 	"mime/multipart"
+	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/forkyid/go-utils/v1/logger"
 	publisher "github.com/forkyid/go-utils/v1/nsq/publisher/v1"
 	"github.com/forkyid/go-utils/v1/pagination"
-	responseMsg "github.com/forkyid/go-utils/v1/rest/response"
 	uuid "github.com/forkyid/go-utils/v1/uuid"
 	"github.com/gin-gonic/gin"
 	"github.com/globalsign/mgo/bson"
@@ -81,13 +80,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 		log.Println("proceeding with first message only...")
 	}
 	if len(msg) == 0 {
-		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
-			log.Println("default message for status code " + strconv.Itoa(status) + " not found")
-			log.Println("proceeding with empty message...")
-			msg = []string{""}
-		} else {
-			msg = []string{defaultMessage.(string)}
-		}
+		msg = []string{http.StatusText(status)}
 	}
 
 	response := Response{
@@ -108,13 +101,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 // return ResponseResult
 func ResponsePagination(context *gin.Context, status int, params ResponsePaginationParams) ResponseResult {
 	var msg string
-	if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
-		log.Println("default message for status code " + strconv.Itoa(status) + " not found")
-		log.Println("proceeding with empty message...")
-		msg = ""
-	} else {
-		msg = defaultMessage.(string)
-	}
+	msg = http.StatusText(status)
 
 	if params.Pagination == nil {
 		log.Println("proceeding with default pagination value")
@@ -148,17 +135,14 @@ func ResponsePagination(context *gin.Context, status int, params ResponsePaginat
 // msg: string
 func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseResult {
 	if len(msg) > 1 {
+		if status >= 400 {
+			log.Println("[DEBUG]", msg[0])
+		}
 		log.Println("response cannot contain more than one message")
 		log.Println("proceeding with first message only...")
 	}
 	if len(msg) == 0 {
-		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
-			log.Println("default message for status code " + strconv.Itoa(status) + " not found")
-			log.Println("proceeding with empty message...")
-			msg = []string{""}
-		} else {
-			msg = []string{defaultMessage.(string)}
-		}
+		msg = []string{http.StatusText(status)}
 	}
 
 	response := Response{
@@ -185,13 +169,7 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 		log.Println("proceeding with first message only...")
 	}
 	if len(msg) == 0 {
-		if defaultMessage := responseMsg.Response[status]; defaultMessage == nil {
-			log.Println("default message for status code " + strconv.Itoa(status) + " not found")
-			log.Println("proceeding with empty message...")
-			msg = []string{""}
-		} else {
-			msg = []string{defaultMessage.(string)}
-		}
+		msg = []string{http.StatusText(status)}
 	}
 
 	response := Response{
@@ -213,6 +191,10 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 		response.Detail["error"] = det
 	}
 
+	log.Printf("[DEBUG] %+v\n", response)
+
+	var copied gin.Context = *context
+	PublishLog(&copied, status, response.Detail, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, response.Error}
 }
