@@ -134,14 +134,13 @@ func ResponsePagination(context *gin.Context, status int, params ResponsePaginat
 // msg: string
 func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseResult {
 	if len(msg) > 1 {
-		if status >= 400 {
-			log.Println("[GOUTILS-debug]", msg[0])
-		}
 		log.Println("response cannot contain more than one message")
 		log.Println("proceeding with first message only...")
 	}
 	if len(msg) == 0 {
 		msg = []string{http.StatusText(status)}
+	} else if status < 200 || status > 299 {
+		log.Println("[GOUTILS-debug]", msg[0])
 	}
 
 	response := Response{
