@@ -100,8 +100,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 // @params: ResponsePaginationParams
 // return ResponseResult
 func ResponsePagination(context *gin.Context, status int, params ResponsePaginationParams) ResponseResult {
-	var msg string
-	msg = http.StatusText(status)
+	msg := http.StatusText(status)
 
 	if params.Pagination == nil {
 		log.Println("proceeding with default pagination value")
@@ -136,7 +135,7 @@ func ResponsePagination(context *gin.Context, status int, params ResponsePaginat
 func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseResult {
 	if len(msg) > 1 {
 		if status >= 400 {
-			log.Println("[DEBUG]", msg[0])
+			log.Println("[GOUTILS-debug]", msg[0])
 		}
 		log.Println("response cannot contain more than one message")
 		log.Println("proceeding with first message only...")
@@ -191,7 +190,7 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 		response.Detail["error"] = det
 	}
 
-	log.Printf("[DEBUG] %+v\n", response)
+	log.Printf("[GOUTILS-debug] %+v\n", response)
 
 	var copied gin.Context = *context
 	PublishLog(&copied, status, response.Detail, msg[0])
