@@ -18,12 +18,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	ErrMsgDuplicateAcc = "Duplicate Account"
+	ErrMsgBanned       = "Banned"
+	ErrMsgSuspended    = "Suspended"
+)
+
 type MemberStatusKey struct {
 	ID string `cache:"key"`
 }
 
 type MemberStatus struct {
 	DeviceID   string     `json:"device_id,omitempty" mapstructure:"device_id"`
+	IsOnHold   bool       `json:"is_on_hold,omitempty"`
 	IsBanned   bool       `json:"is_banned,omitempty" mapstructure:"is_banned"`
 	SuspendEnd *time.Time `json:"suspend_end,omitempty"`
 }
@@ -31,7 +38,7 @@ type MemberStatus struct {
 func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status MemberStatus, err error) {
 	isAlive := cache.IsCacheConnected()
 	if !isAlive {
-		log.Printf("redis connect failed: %s\n", os.Getenv("REDIS_HOST"))
+		log.Println("[WARN] redis: connection failed")
 	}
 
 	statusKey := cache.ExternalKey("global", MemberStatusKey{
@@ -50,8 +57,14 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 			return
 		}
 		if err != redis.Nil {
-			log.Println("redis get unmarshal: " + err.Error())
+			log.Println("[WARN] redis: get unmarshal:", err.Error())
 		}
+	}
+
+	status.IsOnHold, err = getAccStatus(ctx)
+	if err != nil {
+		err = errors.Wrap(err, "get account status")
+		return
 	}
 
 	status.IsBanned, err = isBanned(ctx)
@@ -63,7 +76,7 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 	if isAlive {
 		err = cache.SetJSON(statusKey, status, 600)
 		if err != nil {
-			log.Println("redis set: " + err.Error())
+			log.Println("[WARN] redis: set:", err.Error())
 		}
 	}
 
@@ -80,30 +93,35 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 
 	id, err := jwt.ExtractID(auth)
 	if err != nil {
-		log.Println("extract id: " + err.Error())
+		log.Println("[ERROR] extract id:", err.Error())
 		rest.ResponseError(ctx, http.StatusUnauthorized, map[string]string{
-			"access_token": "expired",
-		})
+			"access_token": "expired"})
 		ctx.Abort()
 		return
 	}
 
 	status, err := GetStatus(ctx, mid.elastic, id)
 	if err != nil {
-		log.Println("get status: " + err.Error())
+		log.Println("[ERROR] get status:", err.Error())
 		rest.ResponseMessage(ctx, http.StatusInternalServerError)
 		ctx.Abort()
 		return
 	}
 
+	if status.IsOnHold {
+		rest.ResponseMessage(ctx, http.StatusForbidden, ErrMsgDuplicateAcc)
+		ctx.Abort()
+		return
+	}
+
 	if status.IsBanned {
-		rest.ResponseMessage(ctx, http.StatusForbidden, "Banned")
+		rest.ResponseMessage(ctx, http.StatusForbidden, ErrMsgBanned)
 		ctx.Abort()
 		return
 	}
 
 	if status.SuspendEnd != nil && status.SuspendEnd.After(time.Now()) {
-		rest.ResponseMessage(ctx, http.StatusLocked, "Suspended")
+		rest.ResponseMessage(ctx, http.StatusLocked, ErrMsgSuspended)
 		ctx.Abort()
 		return
 	}
@@ -140,11 +158,48 @@ func isBanned(ctx *gin.Context) (bool, error) {
 	return true, nil
 }
 
+func getAccStatus(ctx *gin.Context) (isOnHold bool, err error) {
+	req := rest.Request{
+		URL:    fmt.Sprintf("%v/gs/v1/accounts", os.Getenv("API_ORIGIN_URL")),
+		Method: http.MethodGet,
+		Headers: map[string]string{
+			"Authorization": ctx.GetHeader("Authorization")},
+	}
+
+	respJson, code := req.Send()
+	if code != http.StatusOK {
+		err = fmt.Errorf("%v: %d", req.URL, code)
+		return
+	}
+
+	data, err := rest.GetData(respJson)
+	if err != nil {
+		err = errors.Wrap(err, "get data")
+		return
+	}
+
+	resp := map[string]interface{}{}
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		err = errors.Wrap(err, "unmarshal")
+		return
+	}
+
+	status, ok := resp["status"].(string)
+	if ok && status == "onhold" {
+		isOnHold = true
+	} else if !ok {
+		err = fmt.Errorf("status invalid")
+	}
+
+	return
+}
+
 // CheckWaitingStatus params
 //	@ctx: *gin.Context
 func (m *Middleware) CheckWaitingStatus(ctx *gin.Context) {
 	if err := m.elastic.WaitForYellowStatus("1s"); err != nil {
-		log.Println("ERROR: wait for yellow status: " + err.Error())
+		log.Println("[ERROR] wait for yellow status:", err.Error())
 		return
 	}
 
@@ -153,14 +208,14 @@ func (m *Middleware) CheckWaitingStatus(ctx *gin.Context) {
 		Id("status").
 		Do(ctx)
 	if err != nil {
-		log.Println("ERROR: get waiting list status: " + err.Error())
+		log.Println("[ERROR] get waiting list status:", err.Error())
 		return
 	}
 
 	resultStruct := map[string]bool{}
 
 	if !result.Found {
-		log.Println("ERROR: waiting list status not found: " + err.Error())
+		log.Println("[ERROR] waiting list status not found:", err.Error())
 		return
 	}
 
@@ -168,7 +223,7 @@ func (m *Middleware) CheckWaitingStatus(ctx *gin.Context) {
 	isWait := resultStruct["status"]
 
 	if isWait {
-		rest.ResponseMessage(ctx, http.StatusServiceUnavailable, "Service Unavailable")
+		rest.ResponseMessage(ctx, http.StatusServiceUnavailable)
 		ctx.Abort()
 	}
 }
