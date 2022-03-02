@@ -18,10 +18,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	ErrMsgDuplicateAcc = "Duplicate Account"
-	ErrMsgBanned       = "Banned"
-	ErrMsgSuspended    = "Suspended"
+var (
+	ErrDuplicateAcc = errors.New("Duplicate Account")
+	ErrBanned       = errors.New("Banned")
+	ErrSuspended    = errors.New("Suspended")
 )
 
 type MemberStatusKey struct {
@@ -109,19 +109,19 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 	}
 
 	if status.IsOnHold {
-		rest.ResponseMessage(ctx, http.StatusForbidden, ErrMsgDuplicateAcc)
+		rest.ResponseMessage(ctx, http.StatusForbidden, ErrDuplicateAcc.Error())
 		ctx.Abort()
 		return
 	}
 
 	if status.IsBanned {
-		rest.ResponseMessage(ctx, http.StatusForbidden, ErrMsgBanned)
+		rest.ResponseMessage(ctx, http.StatusForbidden, ErrBanned.Error())
 		ctx.Abort()
 		return
 	}
 
 	if status.SuspendEnd != nil && status.SuspendEnd.After(time.Now()) {
-		rest.ResponseMessage(ctx, http.StatusLocked, ErrMsgSuspended)
+		rest.ResponseMessage(ctx, http.StatusLocked, ErrSuspended.Error())
 		ctx.Abort()
 		return
 	}
