@@ -101,8 +101,8 @@ func BindMultipartFormData(ctx *gin.Context, v interface{}) (err error) {
 			val.Field(i).SetString(form.Value[tagForm][0])
 		}
 
-		var file File
-		if fieldType == reflect.TypeOf(Files{}) {
+		var file *multipart.FileHeader
+		if fieldType == reflect.TypeOf([]*multipart.FileHeader{}) {
 			val.Field(i).Set(reflect.ValueOf(form.File[tagFormFile]))
 		} else if fieldType == reflect.TypeOf(file) && len(form.File[tagFormFile]) > 0 {
 			val.Field(i).Set(reflect.ValueOf(form.File[tagFormFile][0]))
