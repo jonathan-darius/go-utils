@@ -21,6 +21,7 @@ import (
 var (
 	ErrDuplicateAcc = errors.New("Duplicate Account")
 	ErrBanned       = errors.New("Banned")
+	ErrUnderage     = errors.New("Underage")
 	ErrSuspended    = errors.New("Suspended")
 )
 
@@ -28,10 +29,15 @@ type MemberStatusKey struct {
 	ID string `cache:"key"`
 }
 
+type banStatus struct {
+	IsBanned bool   `json:"is_banned"`
+	TypeName string `json:"type_name,omitempty"`
+}
+
 type MemberStatus struct {
-	DeviceID   string     `json:"device_id,omitempty" mapstructure:"device_id"`
+	banStatus
+	DeviceID   string     `json:"device_id,omitempty"`
 	IsOnHold   bool       `json:"is_on_hold,omitempty"`
-	IsBanned   bool       `json:"is_banned,omitempty" mapstructure:"is_banned"`
 	SuspendEnd *time.Time `json:"suspend_end,omitempty"`
 }
 
@@ -67,9 +73,9 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 		return
 	}
 
-	status.IsBanned, err = isBanned(ctx)
+	status.banStatus, err = getBanStatus(ctx)
 	if err != nil {
-		err = errors.Wrap(err, "check banned")
+		err = errors.Wrap(err, "get ban status")
 		return
 	}
 
@@ -115,7 +121,11 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 	}
 
 	if status.IsBanned {
-		rest.ResponseMessage(ctx, http.StatusForbidden, ErrBanned.Error())
+		if status.TypeName == "underage" {
+			rest.ResponseMessage(ctx, http.StatusForbidden, ErrUnderage.Error())
+		} else {
+			rest.ResponseMessage(ctx, http.StatusForbidden, ErrBanned.Error())
+		}
 		ctx.Abort()
 		return
 	}
@@ -136,26 +146,28 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 	ctx.Next()
 }
 
-func isBanned(ctx *gin.Context) (bool, error) {
-	id, _ := jwt.ExtractID(ctx.GetHeader("Authorization"))
-	query := map[string]string{
-		"block_type_id": aes.Encrypt(1),
-		"blocker_id":    "0",
-		"blocked_id":    aes.Encrypt(id),
-	}
+func getBanStatus(ctx *gin.Context) (status banStatus, err error) {
 	req := rest.Request{
-		URL:     fmt.Sprintf("%v/report/v1/blocks", os.Getenv("API_ORIGIN_URL")),
-		Method:  http.MethodGet,
-		Queries: query,
+		URL:    fmt.Sprintf("%v/report/v1/bans", os.Getenv("API_ORIGIN_URL")),
+		Method: http.MethodGet,
+		Headers: map[string]string{
+			"Authorization": ctx.GetHeader("Authorization")},
 	}
-	_, code := req.WithContext(ctx).Send()
-	if code == http.StatusNotFound {
-		return false, nil
-	}
+
+	body, code := req.Send()
 	if code != http.StatusOK {
-		return false, fmt.Errorf("get blocked: status code unexpected: %d", code)
+		err = fmt.Errorf("[%v] %v: %v", req.Method, req.URL, string(body))
+		return
 	}
-	return true, nil
+
+	data, err := rest.GetData(body)
+	if err != nil {
+		err = errors.Wrap(err, "get data")
+		return
+	}
+
+	err = json.Unmarshal(data, &status)
+	return
 }
 
 func getAccStatus(ctx *gin.Context) (isOnHold bool, err error) {
@@ -168,7 +180,7 @@ func getAccStatus(ctx *gin.Context) (isOnHold bool, err error) {
 
 	respJson, code := req.Send()
 	if code != http.StatusOK {
-		err = fmt.Errorf("%v: %d", req.URL, code)
+		err = fmt.Errorf("[%v] %v: %v", req.Method, req.URL, string(respJson))
 		return
 	}
 
