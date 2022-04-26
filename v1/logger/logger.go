@@ -167,37 +167,40 @@ func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) 
 
 // Fatalf params
 //	@ctx: *gin.Context
+//	@errMsg: string
 //	@err: error
 //	@args: ...interface{}
-func Fatalf(ctx *gin.Context, err error, args ...interface{}) {
-	logger.WithFields(defineFields(ctx, args)).Fatal(err.Error())
+func Fatalf(ctx *gin.Context, errMsg string, err error, args ...interface{}) {
+	logger.WithFields(defineFields(ctx, args)).Fatalf(errMsg+": %v", err)
 }
 
 // Errorf params
 //	@ctx: *gin.Context
+//	@errMsg: string
 //	@err: error
 //	@args: ...interface{}
-func Errorf(ctx *gin.Context, err error, args ...interface{}) {
-	logger.WithFields(defineFields(ctx, args)).Error(err.Error())
+func Errorf(ctx *gin.Context, errMsg string, err error, args ...interface{}) {
+	logger.WithFields(defineFields(ctx, args)).Errorf(errMsg+": %v", err)
 }
 
 // Warnf params
-//	@format: string
+//	@errMsg: string
 //	@err: error
-func Warnf(format string, err error) {
-	logger.WithFields(logrus.Fields{"Trace": traceStack()}).Warnf(format+": %v", err)
+func Warnf(errMsg string, err error) {
+	logger.WithFields(logrus.Fields{"Trace": traceStack()}).Warnf(errMsg+": %v", err)
 }
 
 // Infof params
-//	@format: string
-func Infof(format string) {
-	logger.WithFields(logrus.Fields{}).Info(format)
+//	@errMsg: string
+func Infof(errMsg string) {
+	logger.WithFields(logrus.Fields{}).Info(errMsg)
 }
 
 // Debugf params
 //	@ctx: *gin.Context
+//	@errMsg: string
 //	@err: error
 //	@args: ...interface{}
-func Debugf(ctx *gin.Context, err error, args ...interface{}) {
-	logger.WithFields(defineFields(ctx, args)).Debug(err.Error())
+func Debugf(ctx *gin.Context, errMsg string, err error, args ...interface{}) {
+	logger.WithFields(defineFields(ctx, args)).Debugf(errMsg+": %v", err)
 }
