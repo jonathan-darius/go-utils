@@ -2,14 +2,13 @@ package logger
 
 import (
 	"bytes"
-	"encoding/json"
-	"fmt"
+	"errors"
+	"html/template"
+	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"runtime"
-	"text/template"
-
-	"net"
 	"strings"
 
 	"github.com/forkyid/go-utils/v1/uuid"
@@ -17,52 +16,91 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var l *logrus.Logger
+var logger *logrus.Logger
+var cidrs []*net.IPNet
 
-// logger func
-// 	return *logrus.Logger
-func logger() *logrus.Logger {
-	if l == nil {
-		l = logrus.New()
-		if os.Getenv("ENV") == "production" {
-			l.SetFormatter(&logrus.JSONFormatter{})
-			l.SetOutput(os.Stdout)
+const (
+	envProduction = "production"
+	tagJson       = "json"
+	tagLogIgnore  = "logignore"
+)
+
+func init() {
+	if logger == nil {
+		logger = logrus.New()
+		logger.SetLevel(logrus.DebugLevel)
+		if os.Getenv("ENV") == envProduction {
+			logger.SetFormatter(&logrus.JSONFormatter{})
+			logger.SetOutput(os.Stdout)
 		} else {
-			l.SetFormatter(&logrus.TextFormatter{
+			logger.SetFormatter(&logrus.TextFormatter{
 				FullTimestamp: true,
 				ForceColors:   true,
 				DisableQuote:  true,
 			})
 		}
 	}
-
-	return l
-}
-
-// realIP get the real IP from http request
-func realIP(req *http.Request) string {
-	ra := req.RemoteAddr
-	if ip := req.Header.Get("X-Forwarded-For"); ip != "" {
-		ra = strings.Split(ip, ", ")[0]
-	} else if ip := req.Header.Get("X-Real-IP"); ip != "" {
-		ra = ip
-	} else {
-		ra, _, _ = net.SplitHostPort(ra)
+	maxCidrBlocks := []string{
+		"127.0.0.1/8",    // localhost
+		"10.0.0.0/8",     // 24-bit block
+		"172.16.0.0/12",  // 20-bit block
+		"192.168.0.0/16", // 16-bit block
+		"169.254.0.0/16", // link local address
+		"::1/128",        // localhost IPv6
+		"fc00::/7",       // unique local address IPv6
+		"fe80::/10",      // link local address IPv6
 	}
-	return ra
+	cidrs = make([]*net.IPNet, len(maxCidrBlocks))
+	for i, maxCidrBlock := range maxCidrBlocks {
+		_, cidr, _ := net.ParseCIDR(maxCidrBlock)
+		cidrs[i] = cidr
+	}
 }
 
-// log params
-// 	@fields: logrus.Fields
-// 	@errMsg: string
-func log(fields logrus.Fields, errMsg string) {
-	logger := logger()
+func isPrivateAddress(address string) (isPrivate bool, err error) {
+	ipAddress := net.ParseIP(address)
+	if ipAddress == nil {
+		isPrivate = false
+		err = errors.New("address is not valid")
+		return
+	}
+	for i := range cidrs {
+		if cidrs[i].Contains(ipAddress) {
+			isPrivate = true
+			return
+		}
+	}
+	isPrivate = false
+	return
+}
 
-	stack := ""
-	ut, _ := template.New("stack").Parse("\n\t{{ .Name }} {{ .File }}#{{ .Line }}")
-	for i := 3; i > 1; i-- {
-		pc, file, line, ok := runtime.Caller(i)
-		if ok {
+func realIP(req *http.Request) (ip string) {
+	ip = req.Header.Get("X-Real-Ip")
+	xForwardedFor := req.Header.Get("X-Forwarded-For")
+	if ip == "" && xForwardedFor == "" {
+		if strings.ContainsRune(req.RemoteAddr, ':') {
+			ip, _, _ = net.SplitHostPort(req.RemoteAddr)
+		} else {
+			ip = req.RemoteAddr
+		}
+		return
+	}
+	for _, address := range strings.Split(xForwardedFor, ",") {
+		address = strings.TrimSpace(address)
+		isPrivate, err := isPrivateAddress(address)
+		if !isPrivate && err == nil {
+			ip = address
+			return
+		}
+	}
+	return
+}
+
+func traceStack() (stack string) {
+	stack = ""
+	ut, _ := template.New("stack").Parse("\n\t{{ .Name }} {{ .File }}:{{ .Line }}")
+	for i := 1; i < 4; i++ {
+		if pc, file, line, ok := runtime.Caller(i); ok {
 			buf := new(bytes.Buffer)
 			ut.Execute(buf, struct {
 				Name string
@@ -76,84 +114,90 @@ func log(fields logrus.Fields, errMsg string) {
 			stack += buf.String()
 		}
 	}
-	fields["Trace"] = stack
-
-	logger.WithFields(fields).Error(errMsg)
+	return
 }
 
-// LogWithContext params
-// 	@ctx: *gin.Context
-//	@uuid: string
-// 	@errMsg: string
-func LogWithContext(ctx *gin.Context, uuid, errMsg string) {
-	req := ctx.Request
-	payload := map[string]string{}
+func parseBody(v interface{}) (body map[string]string) {
+	if v == nil || reflect.TypeOf(v).Kind() != reflect.Slice || reflect.ValueOf(v).Len() == 0 {
+		return
+	}
+	val := reflect.ValueOf(v).Index(0)
+	if val.Kind() == reflect.Interface && val.Elem().Kind() == reflect.Struct {
+		val = val.Elem()
+	} else {
+		return
+	}
+	t := val.Type()
+	body = map[string]string{}
+	for i := 0; i < val.NumField(); i++ {
+		field := t.Field(i)
+		logIgnore := field.Tag.Get(tagLogIgnore)
+		if logIgnore == "true" {
+			continue
+		}
+		body[field.Tag.Get(tagJson)] = val.Field(i).String()
+	}
+	return
+}
+
+func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) {
+	params := map[string]string{}
 	for _, p := range ctx.Params {
-		payload[p.Key] = p.Value
+		params[p.Key] = p.Value
 	}
-
-	fields := logrus.Fields{
-		"Key":         uuid,
+	fields = logrus.Fields{
+		"Key":         uuid.GetUUID(),
 		"ServiceName": os.Getenv("SERVICE_NAME"),
-		"Payload":     payload,
+		"Params":      params,
 		"StatusCode":  ctx.Writer.Status(),
+		"Trace":       traceStack(),
 	}
-
+	req := ctx.Request
 	if req != nil {
 		fields["Request"] = req.RequestURI
 		fields["Method"] = req.Method
 		fields["IP"] = realIP(req)
 		fields["RemoteAddress"] = req.Header.Get("X-Request-Id")
 	}
-
-	log(fields, errMsg)
+	if len(args) > 0 {
+		fields["Body"] = parseBody(args[0])
+	}
+	return
 }
 
-// Log params
-//	@errMsg: string
-func Log(errMsg string) {
-	fields := logrus.Fields{
-		"Key":         uuid.GetUUID(),
-		"ServiceName": os.Getenv("SERVICE_NAME"),
-	}
-
-	log(fields, errMsg)
+// Fatalf params
+//	@ctx: *gin.Context
+//	@err: error
+//	@args: ...interface{}
+func Fatalf(ctx *gin.Context, err error, args ...interface{}) {
+	logger.WithFields(defineFields(ctx, args)).Fatal(err.Error())
 }
 
-// LogUserActivity for CMS user activity
-func LogUserActivity(eventName, before, after, auth string) error {
-	payload := map[string]string{
-		"name":   eventName,
-		"before": before,
-		"after":  after,
-	}
+// Errorf params
+//	@ctx: *gin.Context
+//	@err: error
+//	@args: ...interface{}
+func Errorf(ctx *gin.Context, err error, args ...interface{}) {
+	logger.WithFields(defineFields(ctx, args)).Error(err.Error())
+}
 
-	payloadMarshal, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
+// Warnf params
+//	@format: string
+//	@err: error
+func Warnf(format string, err error) {
+	logger.WithFields(logrus.Fields{"Trace": traceStack()}).Warnf(format+": %v", err)
+}
 
-	url := fmt.Sprintf("%v/cms/member/v1/activities", os.Getenv("API_ORIGIN_URL"))
-	method := http.MethodPost
-	headers := map[string]string{
-		"Authorization": auth,
-	}
-	body := bytes.NewReader(payloadMarshal)
+// Infof params
+//	@format: string
+func Infof(format string) {
+	logger.WithFields(logrus.Fields{}).Info(format)
+}
 
-	req, _ := http.NewRequest(method, url, body)
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error on inserting User Activities")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("status code not OK")
-	}
-
-	return nil
+// Debugf params
+//	@ctx: *gin.Context
+//	@err: error
+//	@args: ...interface{}
+func Debugf(ctx *gin.Context, err error, args ...interface{}) {
+	logger.WithFields(defineFields(ctx, args)).Debug(err.Error())
 }
