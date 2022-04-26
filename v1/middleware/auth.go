@@ -172,7 +172,7 @@ func getBanStatus(ctx *gin.Context) (status banStatus, err error) {
 
 func getAccStatus(ctx *gin.Context) (isOnHold bool, err error) {
 	req := rest.Request{
-		URL:    fmt.Sprintf("%v/gs/v1/accounts", os.Getenv("API_ORIGIN_URL")),
+		URL:    fmt.Sprintf("%v/gs/v1/accounts/status", os.Getenv("API_ORIGIN_URL")),
 		Method: http.MethodGet,
 		Headers: map[string]string{
 			"Authorization": ctx.GetHeader("Authorization")},
