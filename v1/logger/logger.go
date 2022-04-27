@@ -3,7 +3,6 @@ package logger
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -122,18 +121,16 @@ func traceStack() (stack string) {
 }
 
 func parseBody(v interface{}) (body map[string]string) {
-	fmt.Println(v, reflect.TypeOf(v).Kind(), reflect.ValueOf(v).Len())
 	if v == nil || reflect.TypeOf(v).Kind() != reflect.Slice || reflect.ValueOf(v).Len() == 0 {
-		fmt.Println("return first")
 		return
 	}
 
 	val := reflect.ValueOf(v).Index(0)
-	fmt.Println(val.Kind(), val.Elem().Kind())
 	if val.Kind() == reflect.Interface && val.Elem().Kind() == reflect.Struct {
 		val = val.Elem()
+	} else if val.Kind() == reflect.Interface && val.Elem().Kind() == reflect.Slice {
+		val = val.Elem().Index(0).Elem()
 	} else {
-		fmt.Println("return second")
 		return
 	}
 
