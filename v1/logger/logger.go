@@ -64,12 +64,14 @@ func isPrivateAddress(address string) (isPrivate bool, err error) {
 		err = errors.New("address is not valid")
 		return
 	}
+
 	for i := range cidrs {
 		if cidrs[i].Contains(ipAddress) {
 			isPrivate = true
 			return
 		}
 	}
+
 	isPrivate = false
 	return
 }
@@ -85,6 +87,7 @@ func realIP(req *http.Request) (ip string) {
 		}
 		return
 	}
+
 	for _, address := range strings.Split(xForwardedFor, ",") {
 		address = strings.TrimSpace(address)
 		isPrivate, err := isPrivateAddress(address)
@@ -121,12 +124,14 @@ func parseBody(v interface{}) (body map[string]string) {
 	if v == nil || reflect.TypeOf(v).Kind() != reflect.Slice || reflect.ValueOf(v).Len() == 0 {
 		return
 	}
+
 	val := reflect.ValueOf(v).Index(0)
 	if val.Kind() == reflect.Interface && val.Elem().Kind() == reflect.Struct {
 		val = val.Elem()
 	} else {
 		return
 	}
+
 	t := val.Type()
 	body = map[string]string{}
 	for i := 0; i < val.NumField(); i++ {
@@ -141,6 +146,10 @@ func parseBody(v interface{}) (body map[string]string) {
 }
 
 func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) {
+	if ctx == nil {
+		return
+	}
+
 	params := map[string]string{}
 	for _, p := range ctx.Params {
 		params[p.Key] = p.Value
