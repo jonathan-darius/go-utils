@@ -102,7 +102,7 @@ func realIP(req *http.Request) (ip string) {
 func traceStack() (stack string) {
 	stack = ""
 	ut, _ := template.New("stack").Parse("\n\t{{ .Name }} {{ .File }}:{{ .Line }}")
-	for i := 1; i < 4; i++ {
+	for i := 1; i < 6; i++ {
 		if pc, file, line, ok := runtime.Caller(i); ok {
 			buf := new(bytes.Buffer)
 			ut.Execute(buf, struct {
