@@ -57,6 +57,12 @@ func init() {
 	}
 }
 
+// isPrivateAddress works by checking if the address is under private CIDR blocks.
+// List of private CIDR blocks can be seen on:
+//
+// https://en.wikipedia.org/wiki/Private_network
+//
+// https://en.wikipedia.org/wiki/Link-local_address
 func isPrivateAddress(address string) (isPrivate bool, err error) {
 	ipAddress := net.ParseIP(address)
 	if ipAddress == nil {
@@ -76,19 +82,20 @@ func isPrivateAddress(address string) (isPrivate bool, err error) {
 	return
 }
 
+// realIP returns client's real public IP address from http request headers.
 func realIP(req *http.Request) (ip string) {
-	ip = req.Header.Get("X-Real-Ip")
+	ip = req.Header.Get("X-Real-Ip") // Fetch header value
 	xForwardedFor := req.Header.Get("X-Forwarded-For")
-	if ip == "" && xForwardedFor == "" {
-		if strings.ContainsRune(req.RemoteAddr, ':') {
+	if ip == "" && xForwardedFor == "" { // If both empty, return IP from remote address
+		if strings.ContainsRune(req.RemoteAddr, ':') { // If there are colon in remote address, remove the port number
 			ip, _, _ = net.SplitHostPort(req.RemoteAddr)
-		} else {
+		} else { // otherwise, return remote address as is
 			ip = req.RemoteAddr
 		}
 		return
 	}
 
-	for _, address := range strings.Split(xForwardedFor, ",") {
+	for _, address := range strings.Split(xForwardedFor, ",") { // Check list of IP in X-Forwarded-For and return the first global address
 		address = strings.TrimSpace(address)
 		isPrivate, err := isPrivateAddress(address)
 		if !isPrivate && err == nil {
@@ -96,9 +103,10 @@ func realIP(req *http.Request) (ip string) {
 			return
 		}
 	}
-	return
+	return // If nothing succeed, return X-Real-Ip
 }
 
+// traceStack returns the last 6 stack error information about function invocations.
 func traceStack() (stack string) {
 	stack = ""
 	ut, _ := template.New("stack").Parse("\n\t{{ .Name }} {{ .File }}:{{ .Line }}")
@@ -120,6 +128,8 @@ func traceStack() (stack string) {
 	return
 }
 
+// parseBody parses the binded request struct from request body to map[string]string.
+// Adding `logIgnore` will ignore the fields to be parsed.
 func parseBody(v interface{}) (body map[string]string) {
 	if v == nil || reflect.TypeOf(v).Kind() != reflect.Slice || reflect.ValueOf(v).Len() == 0 {
 		return
@@ -147,6 +157,10 @@ func parseBody(v interface{}) (body map[string]string) {
 	return
 }
 
+// defineFields returns logrus logging Fields defined from gin context and optional args.
+// Those 10 fields are: Key, ServiceName, Params, StatusCode, Trace, Request URI, Method, IP, Remote Address, and Body (from optional args).
+// Optional args is the binded request body struct.
+// Only the first args interface will be parsed no matter how many args are passed.
 func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) {
 	if ctx == nil {
 		return
@@ -176,42 +190,27 @@ func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) 
 	return
 }
 
-// Fatalf params
-//	@ctx: *gin.Context
-//	@errMsg: string
-//	@err: error
-//	@args: ...interface{}
+// Fatalf is used to log very severe error events.
 func Fatalf(ctx *gin.Context, errMsg string, err error, args ...interface{}) {
 	logger.WithFields(defineFields(ctx, args)).Fatalf(errMsg+": %v", err)
 }
 
-// Errorf params
-//	@ctx: *gin.Context
-//	@errMsg: string
-//	@err: error
-//	@args: ...interface{}
+// Errorf is used to log issues that preventing the application to properly functioning.
 func Errorf(ctx *gin.Context, errMsg string, err error, args ...interface{}) {
 	logger.WithFields(defineFields(ctx, args)).Errorf(errMsg+": %v", err)
 }
 
-// Warnf params
-//	@errMsg: string
-//	@err: error
+// Warnf is used to log potentially harmful events.
 func Warnf(errMsg string, err error) {
 	logger.WithFields(logrus.Fields{"Trace": traceStack()}).Warnf(errMsg+": %v", err)
 }
 
-// Infof params
-//	@errMsg: string
+// Infof is used to log informational application progress.
 func Infof(errMsg string) {
 	logger.WithFields(logrus.Fields{}).Info(errMsg)
 }
 
-// Debugf params
-//	@ctx: *gin.Context
-//	@errMsg: string
-//	@err: error
-//	@args: ...interface{}
+// Debugf is used to log informational events for troubleshooting.
 func Debugf(ctx *gin.Context, errMsg string, err error, args ...interface{}) {
 	logger.WithFields(defineFields(ctx, args)).Debugf(errMsg+": %v", err)
 }
