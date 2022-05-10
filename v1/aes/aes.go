@@ -68,6 +68,7 @@ func DecryptBulk(data []string) (ret []int, err error) {
 		decrypted := Decrypt(data[i])
 		if decrypted <= 0 {
 			err = ErrDecryptInvalid
+			continue
 		}
 		ret[i] = decrypted
 	}
