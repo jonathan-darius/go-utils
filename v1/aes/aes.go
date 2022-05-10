@@ -70,7 +70,7 @@ func DecryptBulk(data []string) (ret []int, err error) {
 			err = ErrDecryptInvalid
 			continue
 		}
-		ret[i] = decrypted
+		ret = append(ret, decrypted)
 	}
 	return ret, err
 }
