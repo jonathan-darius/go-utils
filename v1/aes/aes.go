@@ -66,11 +66,11 @@ func DecryptBulk(data []string) (ret []int, err error) {
 	for i := range data {
 		decrypted := Decrypt(data[i])
 		if decrypted <= 0 {
-			return nil, fmt.Errorf("Decrypt failed")
+			err = fmt.Errorf("Decrypt failed")
 		}
 		ret[i] = decrypted
 	}
-	return ret, nil
+	return ret, err
 }
 
 // EncryptBulk Function
