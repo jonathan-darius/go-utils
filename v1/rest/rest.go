@@ -52,8 +52,8 @@ type ResponseResult struct {
 }
 
 // Log uses current response context to log
-func (resp ResponseResult) Log(message string) {
-	logger.LogWithContext(resp.Context, resp.UUID, message)
+func (resp ResponseResult) Log(errMsg string, err error, args ...interface{}) {
+	logger.Errorf(resp.Context, errMsg, err, args)
 }
 
 // ErrorDetails contains '|' separated details for each field

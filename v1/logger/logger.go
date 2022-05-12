@@ -2,14 +2,13 @@ package logger
 
 import (
 	"bytes"
-	"encoding/json"
-	"fmt"
+	"errors"
+	"html/template"
+	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"runtime"
-	"text/template"
-
-	"net"
 	"strings"
 
 	"github.com/forkyid/go-utils/v1/uuid"
@@ -17,52 +16,102 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var l *logrus.Logger
+var logger *logrus.Logger
+var cidrs []*net.IPNet
 
-// logger func
-// 	return *logrus.Logger
-func logger() *logrus.Logger {
-	if l == nil {
-		l = logrus.New()
-		if os.Getenv("ENV") == "production" {
-			l.SetFormatter(&logrus.JSONFormatter{})
-			l.SetOutput(os.Stdout)
+const (
+	envProduction = "production"
+	tagJson       = "json"
+	tagLogIgnore  = "logignore"
+)
+
+func init() {
+	if logger == nil {
+		logger = logrus.New()
+		logger.SetLevel(logrus.DebugLevel)
+		if os.Getenv("ENV") == envProduction {
+			logger.SetFormatter(&logrus.JSONFormatter{})
+			logger.SetOutput(os.Stdout)
 		} else {
-			l.SetFormatter(&logrus.TextFormatter{
+			logger.SetFormatter(&logrus.TextFormatter{
 				FullTimestamp: true,
 				ForceColors:   true,
 				DisableQuote:  true,
 			})
 		}
 	}
-
-	return l
-}
-
-// realIP get the real IP from http request
-func realIP(req *http.Request) string {
-	ra := req.RemoteAddr
-	if ip := req.Header.Get("X-Forwarded-For"); ip != "" {
-		ra = strings.Split(ip, ", ")[0]
-	} else if ip := req.Header.Get("X-Real-IP"); ip != "" {
-		ra = ip
-	} else {
-		ra, _, _ = net.SplitHostPort(ra)
+	maxCidrBlocks := []string{
+		"127.0.0.1/8",    // localhost
+		"10.0.0.0/8",     // 24-bit block
+		"172.16.0.0/12",  // 20-bit block
+		"192.168.0.0/16", // 16-bit block
+		"169.254.0.0/16", // link local address
+		"::1/128",        // localhost IPv6
+		"fc00::/7",       // unique local address IPv6
+		"fe80::/10",      // link local address IPv6
 	}
-	return ra
+	cidrs = make([]*net.IPNet, len(maxCidrBlocks))
+	for i, maxCidrBlock := range maxCidrBlocks {
+		_, cidr, _ := net.ParseCIDR(maxCidrBlock)
+		cidrs[i] = cidr
+	}
 }
 
-// log params
-// 	@fields: logrus.Fields
-// 	@errMsg: string
-func log(fields logrus.Fields, errMsg string) {
-	logger := logger()
+// isPrivateAddress works by checking if the address is under private CIDR blocks.
+// List of private CIDR blocks can be seen on:
+//
+// https://en.wikipedia.org/wiki/Private_network
+//
+// https://en.wikipedia.org/wiki/Link-local_address
+func isPrivateAddress(address string) (isPrivate bool, err error) {
+	ipAddress := net.ParseIP(address)
+	if ipAddress == nil {
+		isPrivate = false
+		err = errors.New("address is not valid")
+		return
+	}
 
-	stack := ""
-	ut, _ := template.New("stack").Parse("\n\t{{ .Name }} {{ .File }}#{{ .Line }}")
-	for i := 3; i > 1; i-- {
-		pc, file, line, ok := runtime.Caller(i)
-		if ok {
+	for i := range cidrs {
+		if cidrs[i].Contains(ipAddress) {
+			isPrivate = true
+			return
+		}
+	}
+
+	isPrivate = false
+	return
+}
+
+// realIP returns client's real public IP address from http request headers.
+func realIP(req *http.Request) (ip string) {
+	ip = req.Header.Get("X-Real-Ip") // Fetch header value
+	xForwardedFor := req.Header.Get("X-Forwarded-For")
+	if ip == "" && xForwardedFor == "" { // If both empty, return IP from remote address
+		if strings.ContainsRune(req.RemoteAddr, ':') { // If there are colon in remote address, remove the port number
+			ip, _, _ = net.SplitHostPort(req.RemoteAddr)
+		} else { // otherwise, return remote address as is
+			ip = req.RemoteAddr
+		}
+		return
+	}
+
+	for _, address := range strings.Split(xForwardedFor, ",") { // Check list of IP in X-Forwarded-For and return the first global address
+		address = strings.TrimSpace(address)
+		isPrivate, err := isPrivateAddress(address)
+		if !isPrivate && err == nil {
+			ip = address
+			return
+		}
+	}
+	return // If nothing succeed, return X-Real-Ip
+}
+
+// traceStack returns the last 6 stack error information about function invocations.
+func traceStack() (stack string) {
+	stack = ""
+	ut, _ := template.New("stack").Parse("\n\t{{ .Name }} {{ .File }}:{{ .Line }}")
+	for i := 1; i < 6; i++ {
+		if pc, file, line, ok := runtime.Caller(i); ok {
 			buf := new(bytes.Buffer)
 			ut.Execute(buf, struct {
 				Name string
@@ -76,84 +125,92 @@ func log(fields logrus.Fields, errMsg string) {
 			stack += buf.String()
 		}
 	}
-	fields["Trace"] = stack
-
-	logger.WithFields(fields).Error(errMsg)
+	return
 }
 
-// LogWithContext params
-// 	@ctx: *gin.Context
-//	@uuid: string
-// 	@errMsg: string
-func LogWithContext(ctx *gin.Context, uuid, errMsg string) {
-	req := ctx.Request
-	payload := map[string]string{}
+// parseBody parses the binded request struct from request body to map[string]string.
+// Adding `logIgnore` will ignore the fields to be parsed.
+func parseBody(v interface{}) (body map[string]string) {
+	if v == nil || reflect.TypeOf(v).Kind() != reflect.Slice || reflect.ValueOf(v).Len() == 0 {
+		return
+	}
+
+	val := reflect.ValueOf(v).Index(0)
+	if val.Kind() == reflect.Interface && val.Elem().Kind() == reflect.Struct {
+		val = val.Elem()
+	} else if val.Kind() == reflect.Interface && val.Elem().Kind() == reflect.Slice {
+		val = val.Elem().Index(0).Elem()
+	} else {
+		return
+	}
+
+	t := val.Type()
+	body = map[string]string{}
+	for i := 0; i < val.NumField(); i++ {
+		field := t.Field(i)
+		logIgnore := field.Tag.Get(tagLogIgnore)
+		if logIgnore == "true" {
+			continue
+		}
+		body[field.Tag.Get(tagJson)] = val.Field(i).String()
+	}
+	return
+}
+
+// defineFields returns logrus logging Fields defined from gin context and optional args.
+// Those 10 fields are: Key, ServiceName, Params, StatusCode, Trace, Request URI, Method, IP, Remote Address, and Body (from optional args).
+// Optional args is the binded request body struct.
+// Only the first args interface will be parsed no matter how many args are passed.
+func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) {
+	if ctx == nil {
+		return
+	}
+
+	params := map[string]string{}
 	for _, p := range ctx.Params {
-		payload[p.Key] = p.Value
+		params[p.Key] = p.Value
 	}
-
-	fields := logrus.Fields{
-		"Key":         uuid,
+	fields = logrus.Fields{
+		"Key":         uuid.GetUUID(),
 		"ServiceName": os.Getenv("SERVICE_NAME"),
-		"Payload":     payload,
+		"Params":      params,
 		"StatusCode":  ctx.Writer.Status(),
+		"Trace":       traceStack(),
 	}
-
+	req := ctx.Request
 	if req != nil {
 		fields["Request"] = req.RequestURI
 		fields["Method"] = req.Method
 		fields["IP"] = realIP(req)
 		fields["RemoteAddress"] = req.Header.Get("X-Request-Id")
 	}
-
-	log(fields, errMsg)
+	if len(args) > 0 {
+		fields["Body"] = parseBody(args[0])
+	}
+	return
 }
 
-// Log params
-//	@errMsg: string
-func Log(errMsg string) {
-	fields := logrus.Fields{
-		"Key":         uuid.GetUUID(),
-		"ServiceName": os.Getenv("SERVICE_NAME"),
-	}
-
-	log(fields, errMsg)
+// Fatalf is used to log very severe error events.
+func Fatalf(ctx *gin.Context, errMsg string, err error, args ...interface{}) {
+	logger.WithFields(defineFields(ctx, args)).Fatalf(errMsg+": %v", err)
 }
 
-// LogUserActivity for CMS user activity
-func LogUserActivity(eventName, before, after, auth string) error {
-	payload := map[string]string{
-		"name":   eventName,
-		"before": before,
-		"after":  after,
-	}
+// Errorf is used to log issues that preventing the application to properly functioning.
+func Errorf(ctx *gin.Context, errMsg string, err error, args ...interface{}) {
+	logger.WithFields(defineFields(ctx, args)).Errorf(errMsg+": %v", err)
+}
 
-	payloadMarshal, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
+// Warnf is used to log potentially harmful events.
+func Warnf(errMsg string, err error) {
+	logger.WithFields(logrus.Fields{"Trace": traceStack()}).Warnf(errMsg+": %v", err)
+}
 
-	url := fmt.Sprintf("%v/cms/member/v1/activities", os.Getenv("API_ORIGIN_URL"))
-	method := http.MethodPost
-	headers := map[string]string{
-		"Authorization": auth,
-	}
-	body := bytes.NewReader(payloadMarshal)
+// Infof is used to log informational application progress.
+func Infof(errMsg string) {
+	logger.WithFields(logrus.Fields{}).Info(errMsg)
+}
 
-	req, _ := http.NewRequest(method, url, body)
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error on inserting User Activities")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("status code not OK")
-	}
-
-	return nil
+// Debugf is used to log informational events for troubleshooting.
+func Debugf(ctx *gin.Context, errMsg string, err error, args ...interface{}) {
+	logger.WithFields(defineFields(ctx, args)).Debugf(errMsg+": %v", err)
 }

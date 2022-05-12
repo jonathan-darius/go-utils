@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,10 +17,10 @@ import (
 var hd *hashids.HashIDData
 var salt string
 var minLength int
-
 var hdCMS *hashids.HashIDData
 var saltCMS string
 var minLengthCMS int
+var ErrDecryptInvalid = errors.New("decrypt failed")
 
 func initialize() {
 	if hd != nil {
@@ -66,11 +67,12 @@ func DecryptBulk(data []string) (ret []int, err error) {
 	for i := range data {
 		decrypted := Decrypt(data[i])
 		if decrypted <= 0 {
-			return nil, fmt.Errorf("Decrypt failed")
+			err = ErrDecryptInvalid
+			continue
 		}
-		ret[i] = decrypted
+		ret = append(ret, decrypted)
 	}
-	return ret, nil
+	return ret, err
 }
 
 // EncryptBulk Function
