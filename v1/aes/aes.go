@@ -38,7 +38,7 @@ func initialize() {
 	minLength, _ = strconv.Atoi(minLengthStr)
 }
 
-// Encrypt Function
+// Encrypt encrypts the int id value to encrypted string id.
 func Encrypt(id int) string {
 	initialize()
 	hd.Salt = salt
@@ -48,7 +48,7 @@ func Encrypt(id int) string {
 	return encoded
 }
 
-// Decrypt Function
+// Decrypt decrypts the encrypted string id to int id.
 func Decrypt(data string) int {
 	initialize()
 	hd.Salt = salt
@@ -61,7 +61,8 @@ func Decrypt(data string) int {
 	return d[0]
 }
 
-// DecryptBulk Function
+// DecryptBulk decrypts encrypted string id slice to int id slice.
+// DecryptBulk will decrypt all encrypted string, skips invalid id, but still return an error if occured.
 func DecryptBulk(data []string) (ret []int, err error) {
 	ret = make([]int, len(data))
 	for i := range data {
@@ -75,7 +76,7 @@ func DecryptBulk(data []string) (ret []int, err error) {
 	return ret, err
 }
 
-// EncryptBulk Function
+// EncryptBulk encrypts int id slice to encrypted string id slice.
 func EncryptBulk(data []int) (ret []string) {
 	ret = make([]string, len(data))
 	for i := range data {
@@ -139,7 +140,7 @@ func initializeCMS() {
 	minLengthCMS, _ = strconv.Atoi(minLengthStrCMS)
 }
 
-// EncryptCMS Function
+// EncryptCMS encrypts the int id value to encrypted string id based on CMS AES key.
 func EncryptCMS(id int) string {
 	initializeCMS()
 	hdCMS.Salt = saltCMS
@@ -149,7 +150,7 @@ func EncryptCMS(id int) string {
 	return encodedCMS
 }
 
-// DecryptCMS Function
+// DecryptCMS decrypts the encrypted string id to int id based on CMS AES key.
 func DecryptCMS(data string) int {
 	initializeCMS()
 	hdCMS.Salt = saltCMS
@@ -162,7 +163,7 @@ func DecryptCMS(data string) int {
 	return decryptedCMS[0]
 }
 
-// DecryptCMSBulk Function
+// DecryptCMSBulk decrypts encrypted string id slice to int id slice based on CMS AES key.
 func DecryptCMSBulk(data []string) (ret []int, err error) {
 	ret = make([]int, len(data))
 	for i := range data {
@@ -175,7 +176,7 @@ func DecryptCMSBulk(data []string) (ret []int, err error) {
 	return ret, nil
 }
 
-// EncryptCMSBulk Function
+// EncryptCMSBulk encrypts int id slice to encrypted string id slice based on CMS AES key.
 func EncryptCMSBulk(data []int) (ret []string) {
 	ret = make([]string, len(data))
 	for i := range data {
