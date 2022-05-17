@@ -134,3 +134,13 @@ func Create(ctx *gin.Context) {
 	}
 }
 ```
+
+### Ignore Body Struct Field
+To ignore a credential struct field being logged, just like `password`. You can add a json struct tag `logignore:"true"`. Example:
+```go
+type CreateRequest struct {
+	Username string `json:"username" example:"username" validate:"required"`
+	Password string `json:"password" example:"password" validate:"required" logignore:"true"`
+	Email    string `json:"email" example:"email@email.com" validate:"required,email"`
+}
+```
