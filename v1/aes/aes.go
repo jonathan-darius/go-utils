@@ -64,7 +64,7 @@ func Decrypt(data string) int {
 // DecryptBulk decrypts encrypted string id slice to int id slice.
 // DecryptBulk will decrypt all encrypted string, skips invalid id, but still return an error if occured.
 func DecryptBulk(data []string) (ret []int, err error) {
-	ret = make([]int, len(data))
+	ret = []int{}
 	for i := range data {
 		decrypted := Decrypt(data[i])
 		if decrypted <= 0 {
