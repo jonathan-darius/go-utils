@@ -206,8 +206,8 @@ func Warnf(errMsg string, err error) {
 }
 
 // Infof is used to log informational application progress.
-func Infof(errMsg string) {
-	logger.WithFields(logrus.Fields{}).Info(errMsg)
+func Infof(infoMsg string) {
+	logger.WithFields(logrus.Fields{}).Info(infoMsg)
 }
 
 // Debugf is used to log informational events for troubleshooting.
