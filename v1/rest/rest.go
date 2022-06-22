@@ -53,6 +53,10 @@ type ResponseResult struct {
 
 // Log uses current response context to log
 func (resp ResponseResult) Log(errMsg string, err error, args ...interface{}) {
+	if len(args) > 0 && args[0] == nil { // send nil interface if no value
+		logger.Errorf(resp.Context, errMsg, err, args[0])
+		return
+	}
 	logger.Errorf(resp.Context, errMsg, err, args)
 }
 
