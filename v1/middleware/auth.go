@@ -1,11 +1,14 @@
 package middleware
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/forkyid/go-utils/v1/aes"
@@ -89,6 +92,36 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 	return
 }
 
+func tokenBasicAuth(username, password string) string {
+	auth := username + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
+func checkAuthToken(bearerToken string) (resp rest.Response, err error) {
+	bearerToken = strings.Replace(bearerToken, "Bearer ", "", -1)
+
+	oauthUsername := os.Getenv("OAUTH2_SERVER_BASIC_AUTH_USERNAME")
+	oauthPassword := os.Getenv("OAUTH2_SERVER_BASIC_AUTH_PASSWORD")
+	basicAuth := tokenBasicAuth(oauthUsername, oauthPassword)
+
+	payload := map[string]string{"access_token": bearerToken}
+	payloadJson, _ := json.Marshal(payload)
+
+	req := rest.Request{
+		URL:    fmt.Sprintf("%v/oauth/v1/resource/check/token", os.Getenv("API_ORIGIN_URL")),
+		Method: http.MethodPost,
+		Headers: map[string]string{
+			"Authorization": "Basic " + basicAuth},
+		Body: bytes.NewReader(payloadJson),
+	}
+
+	respJson, statusCode := req.Send()
+	err = errors.Wrap(json.Unmarshal(respJson, &resp), "unmarshal ")
+	resp.Status = statusCode
+
+	return
+}
+
 func (mid *Middleware) Auth(ctx *gin.Context) {
 	auth := ctx.GetHeader("Authorization")
 	if auth == "" {
@@ -97,14 +130,20 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 		return
 	}
 
-	id, err := jwt.ExtractID(auth)
+	resp, err := checkAuthToken(auth)
 	if err != nil {
-		log.Println("[ERROR] extract id:", err.Error())
-		rest.ResponseError(ctx, http.StatusUnauthorized, map[string]string{
-			"access_token": "expired"})
+		rest.ResponseMessage(ctx, http.StatusInternalServerError)
 		ctx.Abort()
 		return
 	}
+
+	if resp.Status != http.StatusOK {
+		rest.ResponseError(ctx, http.StatusUnauthorized, resp.Detail)
+		ctx.Abort()
+		return
+	}
+
+	id, _ := jwt.ExtractID(auth)
 
 	status, err := GetStatus(ctx, mid.elastic, id)
 	if err != nil {
