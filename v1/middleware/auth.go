@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/forkyid/go-utils/v1/aes"
 	"github.com/forkyid/go-utils/v1/cache"
 	"github.com/forkyid/go-utils/v1/jwt"
+	"github.com/forkyid/go-utils/v1/logger"
 	"github.com/forkyid/go-utils/v1/rest"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
@@ -22,10 +22,12 @@ import (
 )
 
 var (
-	ErrDuplicateAcc = errors.New("Duplicate Account")
-	ErrBanned       = errors.New("Banned")
-	ErrUnderage     = errors.New("Underage")
-	ErrSuspended    = errors.New("Suspended")
+	ErrDuplicateAcc          = errors.New("Duplicate Account")
+	ErrBanned                = errors.New("Banned")
+	ErrUnderage              = errors.New("Underage")
+	ErrSuspended             = errors.New("Suspended")
+	ErrNoAuthorizationHeader = errors.New("no Authorization header")
+	ErrConnectionFailed      = errors.New("connection failed")
 )
 
 type MemberStatusKey struct {
@@ -47,7 +49,7 @@ type MemberStatus struct {
 func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status MemberStatus, err error) {
 	isAlive := cache.IsCacheConnected()
 	if !isAlive {
-		log.Println("[WARN] redis: connection failed")
+		logger.Warnf("redis", ErrConnectionFailed)
 	}
 
 	statusKey := cache.ExternalKey("global", MemberStatusKey{
@@ -66,7 +68,7 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 			return
 		}
 		if err != redis.Nil {
-			log.Println("[WARN] redis: get unmarshal:", err.Error())
+			logger.Warnf("redis: get unmarshal", err)
 		}
 	}
 
@@ -85,7 +87,7 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 	if isAlive {
 		err = cache.SetJSON(statusKey, status, 600)
 		if err != nil {
-			log.Println("[WARN] redis: set:", err.Error())
+			logger.Warnf("redis: set", err)
 		}
 	}
 
@@ -125,6 +127,7 @@ func checkAuthToken(bearerToken string) (resp rest.Response, err error) {
 func (mid *Middleware) Auth(ctx *gin.Context) {
 	auth := ctx.GetHeader("Authorization")
 	if auth == "" {
+		logger.Debugf(ctx, "get header", ErrNoAuthorizationHeader)
 		rest.ResponseMessage(ctx, http.StatusUnauthorized)
 		ctx.Abort()
 		return
@@ -132,7 +135,7 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 
 	resp, err := checkAuthToken(auth)
 	if err != nil {
-		rest.ResponseMessage(ctx, http.StatusInternalServerError)
+		rest.ResponseMessage(ctx, http.StatusInternalServerError).Log("check auth token", err)
 		ctx.Abort()
 		return
 	}
@@ -147,8 +150,7 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 
 	status, err := GetStatus(ctx, mid.elastic, id)
 	if err != nil {
-		log.Println("[ERROR] get status:", err.Error())
-		rest.ResponseMessage(ctx, http.StatusInternalServerError)
+		rest.ResponseMessage(ctx, http.StatusInternalServerError).Log("get status", err)
 		ctx.Abort()
 		return
 	}
@@ -250,7 +252,7 @@ func getAccStatus(ctx *gin.Context) (isOnHold bool, err error) {
 //	@ctx: *gin.Context
 func (m *Middleware) CheckWaitingStatus(ctx *gin.Context) {
 	if err := m.elastic.WaitForYellowStatus("1s"); err != nil {
-		log.Println("[ERROR] wait for yellow status:", err.Error())
+		logger.Errorf(ctx, "wait for yellow status", err)
 		return
 	}
 
@@ -259,14 +261,14 @@ func (m *Middleware) CheckWaitingStatus(ctx *gin.Context) {
 		Id("status").
 		Do(ctx)
 	if err != nil {
-		log.Println("[ERROR] get waiting list status:", err.Error())
+		logger.Errorf(ctx, "get waiting list status", err)
 		return
 	}
 
 	resultStruct := map[string]bool{}
 
 	if !result.Found {
-		log.Println("[ERROR] waiting list status not found:", err.Error())
+		logger.Errorf(ctx, "waiting list status not found", err)
 		return
 	}
 
