@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/forkyid/go-utils/v1/logger"
 	"github.com/forkyid/go-utils/v1/rest"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -27,8 +26,7 @@ func (mid *Middleware) CheckFeatureFlagStatus(key string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		status, err := getFeatureFlagStatus(key)
 		if err != nil {
-			logger.Errorf(ctx, "get feature flag status", err)
-			rest.ResponseMessage(ctx, http.StatusInternalServerError)
+			rest.ResponseMessage(ctx, http.StatusInternalServerError).Log("get feature flag status", err)
 			ctx.Abort()
 			return
 		}
