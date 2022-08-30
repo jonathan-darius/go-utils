@@ -16,7 +16,7 @@ var (
 	DisabledStatus    = "disabled"
 	MaintenanceStatus = "maintenance"
 	ErrDisabled       = errors.New("Feature Is Disabled")
-	ErrMaintenance    = errors.New("Feature Under Maintenance")
+	ErrMaintenance    = errors.New("Feature Is Under Maintenance")
 )
 
 type FeatureFlagStatus struct {
