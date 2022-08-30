@@ -19,32 +19,38 @@ var (
 	ErrMaintenance    = errors.New("Feature Under Maintenance")
 )
 
-func (mid *Middleware) CheckFeatureFlagStatus(ctx *gin.Context, key string) {
-	status, err := getFeatureFlagStatus(key)
-	if err != nil {
-		logger.Errorf(ctx, "get feature flag status", err)
-		rest.ResponseMessage(ctx, http.StatusInternalServerError)
-		ctx.Abort()
-		return
-	}
-	if status == DisabledStatus {
-		rest.ResponseMessage(ctx, http.StatusForbidden, ErrDisabled.Error())
-		ctx.Abort()
-		return
-	}
-
-	if status == MaintenanceStatus {
-		rest.ResponseMessage(ctx, http.StatusForbidden, ErrMaintenance.Error())
-		ctx.Abort()
-		return
-	}
-
-	ctx.Next()
+type FeatureFlagStatus struct {
+	Status string `json:"status"`
 }
 
-func getFeatureFlagStatus(key string) (status string, err error) {
+func (mid *Middleware) CheckFeatureFlagStatus(key string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		status, err := getFeatureFlagStatus(key)
+		if err != nil {
+			logger.Errorf(ctx, "get feature flag status", err)
+			rest.ResponseMessage(ctx, http.StatusInternalServerError)
+			ctx.Abort()
+			return
+		}
+		if status.Status == DisabledStatus {
+			rest.ResponseMessage(ctx, http.StatusForbidden, ErrDisabled.Error())
+			ctx.Abort()
+			return
+		}
+
+		if status.Status == MaintenanceStatus {
+			rest.ResponseMessage(ctx, http.StatusForbidden, ErrMaintenance.Error())
+			ctx.Abort()
+			return
+		}
+
+		ctx.Next()
+	}
+}
+
+func getFeatureFlagStatus(key string) (status FeatureFlagStatus, err error) {
 	req := rest.Request{
-		URL:    fmt.Sprintf("%v/cms/v1/feature-flag?key=%v", os.Getenv("API_ORIGIN_URL"), key),
+		URL:    fmt.Sprintf("%v/cms/v1/feature-flags/status?key=%v", os.Getenv("API_ORIGIN_URL"), key),
 		Method: http.MethodGet,
 	}
 
