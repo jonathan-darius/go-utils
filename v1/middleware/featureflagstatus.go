@@ -22,7 +22,7 @@ type FeatureFlagStatus struct {
 	Status string `json:"status"`
 }
 
-// check feature flag status by key and abort if status is not enabled
+// CheckFeatureFlagStatus checks feature flag status by key and abort if status is not enabled.
 func (mid *Middleware) CheckFeatureFlagStatus(key string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		status, err := getFeatureFlagStatus(key)
@@ -47,7 +47,7 @@ func (mid *Middleware) CheckFeatureFlagStatus(key string) gin.HandlerFunc {
 	}
 }
 
-// get feature flag status by its key
+// getFeatureFlagStatus gets feature flag status by its key.
 func getFeatureFlagStatus(key string) (status FeatureFlagStatus, err error) {
 	req := rest.Request{
 		URL:    fmt.Sprintf("%v/cms/v1/feature-flags/status?key=%v", os.Getenv("API_ORIGIN_URL"), key),
