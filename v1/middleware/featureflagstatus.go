@@ -50,7 +50,7 @@ func (mid *Middleware) CheckFeatureFlagStatus(key string) gin.HandlerFunc {
 // getFeatureFlagStatus gets feature flag status by its key.
 func getFeatureFlagStatus(key string) (status FeatureFlagStatus, err error) {
 	req := rest.Request{
-		URL:    fmt.Sprintf("%v/cms/v1/feature-flags/status?key=%v", os.Getenv("API_ORIGIN_URL"), key),
+		URL:    fmt.Sprintf("%v/flag/v1/check?key=%v", os.Getenv("API_ORIGIN_URL"), key),
 		Method: http.MethodGet,
 	}
 
