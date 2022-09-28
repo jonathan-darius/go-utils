@@ -42,7 +42,6 @@ type banStatus struct {
 type MemberStatus struct {
 	banStatus
 	DeviceID   string     `json:"device_id,omitempty"`
-	IsOnHold   bool       `json:"is_on_hold,omitempty"`
 	SuspendEnd *time.Time `json:"suspend_end,omitempty"`
 }
 
@@ -70,12 +69,6 @@ func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status Membe
 		if err != redis.Nil {
 			logger.Warnf("redis: get unmarshal", err)
 		}
-	}
-
-	status.IsOnHold, err = getAccStatus(ctx)
-	if err != nil {
-		err = errors.Wrap(err, "get account status")
-		return
 	}
 
 	status.banStatus, err = getBanStatus(ctx)
@@ -151,12 +144,6 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 	status, err := GetStatus(ctx, mid.elastic, id)
 	if err != nil {
 		rest.ResponseMessage(ctx, http.StatusInternalServerError).Log("get status", err)
-		ctx.Abort()
-		return
-	}
-
-	if status.IsOnHold {
-		rest.ResponseMessage(ctx, http.StatusForbidden, ErrDuplicateAcc.Error())
 		ctx.Abort()
 		return
 	}
@@ -278,5 +265,21 @@ func (m *Middleware) CheckWaitingStatus(ctx *gin.Context) {
 	if isWait {
 		rest.ResponseMessage(ctx, http.StatusServiceUnavailable)
 		ctx.Abort()
+	}
+}
+
+func (m Middleware) CheckSimilar(ctx *gin.Context) {
+	isOnHold, err := getAccStatus(ctx)
+	if err != nil {
+		rest.ResponseMessage(ctx, http.StatusInternalServerError).
+			Log("get account status", err)
+		ctx.Abort()
+		return
+	}
+
+	if isOnHold {
+		rest.ResponseMessage(ctx, http.StatusForbidden, ErrDuplicateAcc.Error())
+		ctx.Abort()
+		return
 	}
 }
