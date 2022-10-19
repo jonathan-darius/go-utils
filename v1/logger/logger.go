@@ -28,11 +28,12 @@ const (
 func init() {
 	if logger == nil {
 		logger = logrus.New()
-		logger.SetLevel(logrus.DebugLevel)
 		if os.Getenv("ENV") == envProduction {
+			logger.SetLevel(logrus.ErrorLevel)
 			logger.SetFormatter(&logrus.JSONFormatter{})
 			logger.SetOutput(os.Stdout)
 		} else {
+			logger.SetLevel(logrus.DebugLevel)
 			logger.SetFormatter(&logrus.TextFormatter{
 				FullTimestamp: true,
 				ForceColors:   true,
