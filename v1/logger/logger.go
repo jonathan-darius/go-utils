@@ -16,23 +16,32 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var logger *logrus.Logger
-var cidrs []*net.IPNet
+var (
+	logger *logrus.Logger
+	cidrs  []*net.IPNet
+
+	serverEnvironments = map[string]bool{
+		"production":  true,
+		"staging":     true,
+		"development": true,
+	}
+)
 
 const (
-	envProduction = "production"
-	tagJson       = "json"
-	tagLogIgnore  = "logignore"
+	tagJson      = "json"
+	tagLogIgnore = "logignore"
 )
 
 func init() {
 	if logger == nil {
 		logger = logrus.New()
-		logger.SetLevel(logrus.DebugLevel)
-		if os.Getenv("ENV") == envProduction {
+		env := os.Getenv("ENV")
+		if serverEnvironments[env] {
+			logger.SetLevel(logrus.ErrorLevel)
 			logger.SetFormatter(&logrus.JSONFormatter{})
 			logger.SetOutput(os.Stdout)
 		} else {
+			logger.SetLevel(logrus.DebugLevel)
 			logger.SetFormatter(&logrus.TextFormatter{
 				FullTimestamp: true,
 				ForceColors:   true,
