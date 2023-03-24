@@ -171,6 +171,15 @@ func parseBody(v interface{}) (body map[string]string) {
 // Optional args is the binded request body struct.
 // Only the first args interface will be parsed no matter how many args are passed.
 func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) {
+	fields = logrus.Fields{
+		"Key":         uuid.GetUUID(),
+		"ServiceName": os.Getenv("SERVICE_NAME"),
+		"Trace":       traceStack(),
+	}
+	if len(args) > 0 {
+		fields["Body"] = parseBody(args[0])
+	}
+
 	if ctx == nil {
 		return
 	}
@@ -179,22 +188,14 @@ func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) 
 	for _, p := range ctx.Params {
 		params[p.Key] = p.Value
 	}
-	fields = logrus.Fields{
-		"Key":         uuid.GetUUID(),
-		"ServiceName": os.Getenv("SERVICE_NAME"),
-		"Params":      params,
-		"StatusCode":  ctx.Writer.Status(),
-		"Trace":       traceStack(),
-	}
+	fields["Params"] = params
+	fields["StatusCode"] = ctx.Writer.Status()
 	req := ctx.Request
 	if req != nil {
 		fields["Request"] = req.RequestURI
 		fields["Method"] = req.Method
 		fields["IP"] = realIP(req)
 		fields["RemoteAddress"] = req.Header.Get("X-Request-Id")
-	}
-	if len(args) > 0 {
-		fields["Body"] = parseBody(args[0])
 	}
 	return
 }
