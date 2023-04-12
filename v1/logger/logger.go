@@ -172,7 +172,6 @@ func parseBody(v interface{}) (body map[string]string) {
 // Only the first args interface will be parsed no matter how many args are passed.
 func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) {
 	fields = logrus.Fields{
-		"Key":         uuid.GetUUID(),
 		"ServiceName": os.Getenv("SERVICE_NAME"),
 		"Trace":       traceStack(),
 	}
@@ -183,6 +182,14 @@ func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) 
 	if ctx == nil {
 		return
 	}
+
+	getRequestID, ok := ctx.Get("request_id")
+	if !ok || getRequestID == "" {
+		getRequestID = uuid.GetUUID()
+	} else {
+		getRequestID = getRequestID.(string)
+	}
+	fields["Key"] = getRequestID
 
 	params := map[string]string{}
 	for _, p := range ctx.Params {
