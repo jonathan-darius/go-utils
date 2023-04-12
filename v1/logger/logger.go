@@ -183,7 +183,7 @@ func defineFields(ctx *gin.Context, args ...interface{}) (fields logrus.Fields) 
 		return
 	}
 
-	getRequestID, ok := ctx.Get("request_id")
+	getRequestID, ok := ctx.Get("response_id")
 	if !ok || getRequestID == "" {
 		getRequestID = uuid.GetUUID()
 	} else {
