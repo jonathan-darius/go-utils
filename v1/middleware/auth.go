@@ -117,15 +117,7 @@ func checkAuthToken(bearerToken string) (resp rest.Response, err error) {
 	return
 }
 
-func (mid *Middleware) Auth(ctx *gin.Context) {
-	auth := ctx.GetHeader("Authorization")
-	if auth == "" {
-		logger.Debugf(ctx, "get header", ErrNoAuthorizationHeader)
-		rest.ResponseMessage(ctx, http.StatusUnauthorized)
-		ctx.Abort()
-		return
-	}
-
+func (mid *Middleware) validate(auth string, ctx *gin.Context) {
 	resp, err := checkAuthToken(auth)
 	if err != nil {
 		rest.ResponseMessage(ctx, http.StatusInternalServerError).Log("check auth token", err)
@@ -172,6 +164,29 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 	}
 
 	ctx.Next()
+
+}
+
+func (mid *Middleware) GuestAuth(ctx *gin.Context) {
+	auth := ctx.GetHeader("Authorization")
+	if auth == "" {
+		ctx.Next()
+		return
+	}
+
+	mid.validate(auth, ctx)
+}
+
+func (mid *Middleware) Auth(ctx *gin.Context) {
+	auth := ctx.GetHeader("Authorization")
+	if auth == "" {
+		logger.Debugf(ctx, "get header", ErrNoAuthorizationHeader)
+		rest.ResponseMessage(ctx, http.StatusUnauthorized)
+		ctx.Abort()
+		return
+	}
+
+	mid.validate(auth, ctx)
 }
 
 func getBanStatus(ctx *gin.Context) (status banStatus, err error) {
@@ -236,6 +251,7 @@ func getAccStatus(ctx *gin.Context) (isOnHold bool, err error) {
 }
 
 // CheckWaitingStatus params
+//
 //	@ctx: *gin.Context
 func (m *Middleware) CheckWaitingStatus(ctx *gin.Context) {
 	if err := m.elastic.WaitForYellowStatus("1s"); err != nil {
