@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -85,43 +86,85 @@ func EncryptBulk(data []int) (ret []string) {
 	return ret
 }
 
-// EncryptString ...
-func EncryptString(data []byte) ([]byte, error) {
-	block, _ := aes.NewCipher([]byte(os.Getenv("AES_STRING_KEY")))
-	gcm, err := cipher.NewGCM(block)
+// EncryptString encrypt text with given key.
+// If key is blank, then use default key.
+func EncryptString(text string, keys ...string) string {
+	key := os.Getenv("AES_STRING_KEY")
+	if len(keys) > 0 {
+		key = keys[0]
+	}
+
+	plaintext := []byte(text)
+	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return nil, err
+		return ""
 	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
+
+	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
+	iv := ciphertext[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return ""
 	}
-	ciphertext := gcm.Seal(nonce, nonce, data, nil)
-	return ciphertext, nil
+
+	stream := cipher.NewCFBEncrypter(block, iv)
+	stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
+
+	return base64.URLEncoding.EncodeToString(ciphertext)
 }
 
-// DecryptString ...
-func DecryptString(data []byte) ([]byte, error) {
-	key := []byte(os.Getenv("AES_STRING_KEY"))
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	nonceSize := gcm.NonceSize()
-	if len(data) < nonceSize {
-		return nil, fmt.Errorf("invalid")
+// DecryptString decrypt text with given key.
+// If keys are blank, then use default key.
+func DecryptString(text string, keys ...string) string {
+	key := os.Getenv("AES_STRING_KEY")
+	if len(keys) > 0 {
+		key = keys[0]
 	}
 
-	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	ciphertext, _ := base64.URLEncoding.DecodeString(text)
+	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return nil, err
+		return ""
 	}
-	return plaintext, nil
+
+	if len(ciphertext) < aes.BlockSize {
+		return ""
+	}
+	iv := ciphertext[:aes.BlockSize]
+	ciphertext = ciphertext[aes.BlockSize:]
+
+	stream := cipher.NewCFBDecrypter(block, iv)
+
+	stream.XORKeyStream(ciphertext, ciphertext)
+
+	return string(ciphertext)
+}
+
+// EncryptStringBulk returns encrypted string as a slice.
+// Invalid encrypted string will not be returned.
+func EncryptStringBulk(text []string, keys ...string) []string {
+	var res []string
+	for _, t := range text {
+		enc := EncryptString(t, keys...)
+		if enc != "" {
+			res = append(res, enc)
+		}
+	}
+
+	return res
+}
+
+// DecryptStringBulk returns decrypted string as a slice.
+// Invalid decrypted string will not be returned.
+func DecryptStringBulk(text []string, keys ...string) []string {
+	var res []string
+	for _, t := range text {
+		dec := DecryptString(t, keys...)
+		if dec != "" {
+			res = append(res, dec)
+		}
+	}
+
+	return res
 }
 
 func initializeCMS() {
