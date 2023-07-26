@@ -2,10 +2,10 @@ package rabbitmq
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"sync"
 
+	"github.com/forkyid/go-utils/v1/logger"
 	"github.com/streadway/amqp"
 )
 
@@ -31,13 +31,7 @@ func Start(m *sync.Mutex) (*amqp.Channel, error) {
 
 		conn, err = amqp.Dial(connString)
 		if err != nil {
-			log.Println(fmt.Sprintf("%s: %s", "Failed to connect to RabbitMQ", err.Error()))
-			return nil, err
-		}
-
-		channel, err = conn.Channel()
-		if err != nil {
-			log.Println("Failed to open RabbitMQ channel:", err.Error())
+			logger.Errorf(nil, "amqp: dial", err)
 			return nil, err
 		}
 
@@ -45,27 +39,36 @@ func Start(m *sync.Mutex) (*amqp.Channel, error) {
 			errChan := conn.NotifyClose(make(chan *amqp.Error))
 			for {
 				if <-errChan != nil {
-					log.Println("RabbitMQ connection closed")
+					err = <-errChan
+					logger.Errorf(nil, "amqp: connection notify close", err)
 					conn = nil
 					return
 				}
 			}
 		}()
+	}
+
+	if channel == nil {
+		channel, err = conn.Channel()
+		if err != nil {
+			logger.Errorf(nil, "amqp: connection channel", err)
+			conn = nil
+			return nil, err
+		}
 
 		go func() {
 			errChan := channel.NotifyClose(make(chan *amqp.Error))
 			for {
 				if <-errChan != nil {
-					log.Println("RabbitMQ channel closed")
+					err = <-errChan
+					logger.Errorf(nil, "amqp: channel notify close", err)
 					conn = nil
 					return
 				}
 			}
 		}()
-
-		fmt.Println("Successfully connected to RabbitMQ")
-
 	}
 
+	logger.Infof("Successfully connected to RabbitMQ")
 	return channel, err
 }
