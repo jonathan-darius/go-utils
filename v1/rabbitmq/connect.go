@@ -32,6 +32,7 @@ func Start(m *sync.Mutex) (*amqp.Channel, error) {
 		conn, err = amqp.Dial(connString)
 		if err != nil {
 			logger.Errorf(nil, "amqp: dial", err)
+			conn = nil
 			return nil, err
 		}
 
@@ -53,6 +54,7 @@ func Start(m *sync.Mutex) (*amqp.Channel, error) {
 		if err != nil {
 			logger.Errorf(nil, "amqp: connection channel", err)
 			conn = nil
+			channel = nil
 			return nil, err
 		}
 
@@ -63,6 +65,7 @@ func Start(m *sync.Mutex) (*amqp.Channel, error) {
 					err = <-errChan
 					logger.Errorf(nil, "amqp: channel notify close", err)
 					conn = nil
+					channel = nil
 					return
 				}
 			}
