@@ -72,6 +72,5 @@ func Start(m *sync.Mutex) (*amqp.Channel, error) {
 		}()
 	}
 
-	logger.Infof("Successfully connected to RabbitMQ")
 	return channel, err
 }
