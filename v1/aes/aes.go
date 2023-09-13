@@ -3,11 +3,9 @@ package aes
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strconv"
@@ -86,12 +84,20 @@ func EncryptBulk(data []int) (ret []string) {
 	return ret
 }
 
-// EncryptString encrypt text with given key.
-// If key is blank, then use default key.
-func EncryptString(text string, keys ...string) string {
+func getStringKey(keys ...string) string {
 	key := os.Getenv("AES_STRING_KEY")
 	if len(keys) > 0 {
 		key = keys[0]
+	}
+	return key
+}
+
+// EncryptString encrypt text with given key.
+// If key is blank, then use default key AES_STRING_KEY in environment.
+func EncryptString(text string, keys ...string) string {
+	key := getStringKey(keys...)
+	if key == "" {
+		return ""
 	}
 
 	plaintext := []byte(text)
@@ -100,25 +106,19 @@ func EncryptString(text string, keys ...string) string {
 		return ""
 	}
 
-	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
-	iv := ciphertext[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return ""
-	}
+	ciphertext := make([]byte, len(plaintext))
+	iv := os.Getenv("AES_IV_KEY")
 
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
+	stream := cipher.NewCFBEncrypter(block, []byte(iv))
+	stream.XORKeyStream(ciphertext, plaintext)
 
 	return base64.URLEncoding.EncodeToString(ciphertext)
 }
 
 // DecryptString decrypt text with given key.
-// If keys are blank, then use default key.
+// If keys are blank, then use default key AES_STRING_KEY in environment.
 func DecryptString(text string, keys ...string) string {
-	key := os.Getenv("AES_STRING_KEY")
-	if len(keys) > 0 {
-		key = keys[0]
-	}
+	key := getStringKey(keys...)
 
 	ciphertext, _ := base64.URLEncoding.DecodeString(text)
 	block, err := aes.NewCipher([]byte(key))
@@ -126,13 +126,9 @@ func DecryptString(text string, keys ...string) string {
 		return ""
 	}
 
-	if len(ciphertext) < aes.BlockSize {
-		return ""
-	}
-	iv := ciphertext[:aes.BlockSize]
-	ciphertext = ciphertext[aes.BlockSize:]
+	iv := os.Getenv("AES_IV_KEY")
 
-	stream := cipher.NewCFBDecrypter(block, iv)
+	stream := cipher.NewCFBDecrypter(block, []byte(iv))
 
 	stream.XORKeyStream(ciphertext, ciphertext)
 
