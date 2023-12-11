@@ -3,7 +3,6 @@ module github.com/forkyid/go-utils
 go 1.16
 
 require (
-	github.com/bearbin/go-age v0.0.0-20210220235509-f0fa00c278ce
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.7.4
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8

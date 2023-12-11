@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bearbin/go-age"
 	"github.com/forkyid/go-utils/v1/aes"
 	"github.com/forkyid/go-utils/v1/cache"
 	"github.com/forkyid/go-utils/v1/jwt"
 	"github.com/forkyid/go-utils/v1/logger"
 	"github.com/forkyid/go-utils/v1/rest"
+	"github.com/forkyid/go-utils/v1/util/age"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"github.com/olivere/elastic/v7"
