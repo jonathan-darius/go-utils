@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bearbin/go-age"
 	"github.com/forkyid/go-utils/v1/aes"
 	"github.com/forkyid/go-utils/v1/cache"
 	"github.com/forkyid/go-utils/v1/jwt"
@@ -28,6 +29,7 @@ var (
 	ErrSuspended             = errors.New("Suspended")
 	ErrNoAuthorizationHeader = errors.New("no Authorization header")
 	ErrConnectionFailed      = errors.New("connection failed")
+	ErrBelowAgeRequirement   = errors.New("below age requirement")
 )
 
 type MemberStatusKey struct {
@@ -162,9 +164,6 @@ func (mid *Middleware) validate(auth string, ctx *gin.Context) {
 		ctx.Abort()
 		return
 	}
-
-	ctx.Next()
-
 }
 
 func (mid *Middleware) GuestAuth(ctx *gin.Context) {
@@ -175,6 +174,7 @@ func (mid *Middleware) GuestAuth(ctx *gin.Context) {
 	}
 
 	mid.validate(auth, ctx)
+	ctx.Next()
 }
 
 func (mid *Middleware) Auth(ctx *gin.Context) {
@@ -187,6 +187,32 @@ func (mid *Middleware) Auth(ctx *gin.Context) {
 	}
 
 	mid.validate(auth, ctx)
+	ctx.Next()
+}
+
+// AgeAuth validates whether user already above the age requirement or not.
+func (mid *Middleware) AgeAuth(minAge int) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		auth := ctx.GetHeader("Authorization")
+		if auth == "" {
+			logger.Debugf(ctx, "get header", ErrNoAuthorizationHeader)
+			rest.ResponseMessage(ctx, http.StatusUnauthorized)
+			ctx.Abort()
+			return
+		}
+
+		mid.validate(auth, ctx)
+		if ctx.IsAborted() {
+			return
+		}
+
+		claims, _ := jwt.ExtractClient(auth)
+		if age.Age(claims.DateOfBirth) < minAge {
+			rest.ResponseMessage(ctx, http.StatusForbidden, ErrBelowAgeRequirement.Error())
+			ctx.Abort()
+			return
+		}
+	}
 }
 
 func getBanStatus(ctx *gin.Context) (status banStatus, err error) {
