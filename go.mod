@@ -18,4 +18,5 @@ require (
 	github.com/speps/go-hashids v2.0.0+incompatible
 	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.6.1
+	golang.org/x/sync v0.8.0
 )
