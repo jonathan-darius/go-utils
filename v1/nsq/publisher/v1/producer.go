@@ -67,7 +67,14 @@ func publishHTTPS(data []byte, topic string, pool *semaphore.Weighted) {
 retPub:
 	pubRetry--
 	resp, err := client.Do(req)
-	if resp.StatusCode != http.StatusOK || err != nil {
+	if err != nil {
+		if retry < 0 {
+			log.Printf("[ERROR] [%d] [%s] %v \n", resp.StatusCode, host, string(data))
+			return
+		}
+		goto retPub
+	}
+	if resp.StatusCode != http.StatusOK {
 		if retry < 0 {
 			log.Printf("[ERROR] [%d] [%s] %v", resp.StatusCode, host, string(data))
 			return
