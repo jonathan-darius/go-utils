@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	connection "github.com/forkyid/go-utils/v1/nsq"
 	"golang.org/x/sync/semaphore"
@@ -68,17 +69,19 @@ retPub:
 	pubRetry--
 	resp, err := client.Do(req)
 	if err != nil {
-		if retry < 0 {
-			log.Printf("[ERROR] [%d] [%s] %v \n", resp.StatusCode, host, string(data))
+		if pubRetry < 0 {
+			log.Printf("[ERROR] [%s] [%s] %v \n", host, err.Error(), string(data))
 			return
 		}
+		time.Sleep(3 * time.Second)
 		goto retPub
 	}
 	if resp.StatusCode != http.StatusOK {
-		if retry < 0 {
+		if pubRetry < 0 {
 			log.Printf("[ERROR] [%d] [%s] %v", resp.StatusCode, host, string(data))
 			return
 		}
+		time.Sleep(3 * time.Second)
 		goto retPub
 	}
 }
