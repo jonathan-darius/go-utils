@@ -50,11 +50,11 @@ func pubTypeHTTPS(topic string, data []byte) (err error) {
 	pubPool := connection.StartProducerPool()
 	ctx := context.Background()
 	pubPool.Acquire(ctx, 1)
-	go pubishHTTPS(data, topic, pubPool)
+	go publishHTTPS(data, topic, pubPool)
 	return
 }
 
-func pubishHTTPS(data []byte, topic string, pool *semaphore.Weighted) {
+func publishHTTPS(data []byte, topic string, pool *semaphore.Weighted) {
 	pubRetry := retry
 	host := fmt.Sprintf("%s/pub?topic=%s", os.Getenv("NSQD_HOST"), topic)
 	defer pool.Release(1)
