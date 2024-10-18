@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
 	connection "github.com/forkyid/go-utils/v1/nsq"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -51,23 +51,25 @@ func pubTypeHTTPS(topic string, data []byte) (err error) {
 	pubPool := connection.StartProducerPool()
 	ctx := context.Background()
 	pubPool.Acquire(ctx, 1)
-	go publishHTTPS(data, topic, pubPool)
+	go func() {
+		defer pubPool.Release(1)
+		publishHTTPS(data, topic)
+	}()
 	return
 }
 
-func publishHTTPS(data []byte, topic string, pool *semaphore.Weighted) {
+func publishHTTPS(data []byte, topic string) {
 	pubRetry := retry
 	host := fmt.Sprintf("%s/pub?topic=%s", os.Getenv("NSQD_HOST"), topic)
-	defer pool.Release(1)
 	req, _ := http.NewRequest(
 		http.MethodPost,
 		host,
 		bytes.NewReader(data),
 	)
-	client := &http.Client{}
+	client := &http.Transport{}
 retPub:
 	pubRetry--
-	resp, err := client.Do(req)
+	resp, err := client.RoundTrip(req)
 	if err != nil {
 		if pubRetry < 0 {
 			log.Printf("[ERROR] [%s] [%s] %v \n", host, err.Error(), string(data))
@@ -77,6 +79,8 @@ retPub:
 		goto retPub
 	}
 	if resp.StatusCode != http.StatusOK {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
 		if pubRetry < 0 {
 			log.Printf("[ERROR] [%d] [%s] %v", resp.StatusCode, host, string(data))
 			return
