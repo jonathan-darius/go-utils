@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -58,34 +59,48 @@ func pubTypeHTTPS(topic string, data []byte) (err error) {
 	return
 }
 
+func backoff(retries int) time.Duration {
+	return time.Duration(math.Pow(2, float64(retries))) * time.Second
+}
+
+func drainBody(resp *http.Response) {
+	if resp.Body != nil {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}
+}
+
 func publishHTTPS(data []byte, topic string) {
-	pubRetry := retry
 	host := fmt.Sprintf("%s/pub?topic=%s", os.Getenv("NSQD_HOST"), topic)
+	client := &http.Client{}
 	req, _ := http.NewRequest(
 		http.MethodPost,
 		host,
 		bytes.NewReader(data),
 	)
-	client := &http.Transport{}
-retPub:
-	pubRetry--
-	resp, err := client.RoundTrip(req)
-	if err != nil {
-		if pubRetry < 0 {
-			log.Printf("[ERROR] [%s] [%s] %v \n", host, err.Error(), string(data))
-			return
+
+	for pubRetry := 0; pubRetry <= retry; pubRetry++ {
+		resp, err := client.Do(req)
+		if err != nil {
+			if pubRetry >= retry {
+				log.Printf("[ERROR] [NSQD] [%s] [%s] %v \n", host, err.Error(), string(data))
+				return
+			}
+			time.Sleep(backoff(pubRetry))
+			continue
 		}
-		time.Sleep(3 * time.Second)
-		goto retPub
-	}
-	if resp.StatusCode != http.StatusOK {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-		if pubRetry < 0 {
-			log.Printf("[ERROR] [%d] [%s] %v", resp.StatusCode, host, string(data))
-			return
+
+		if resp.StatusCode != http.StatusOK {
+			drainBody(resp)
+			if pubRetry >= retry {
+				log.Printf("[ERROR] [NSQD] [Code: %d] [%s] %v\n", resp.StatusCode, host, string(data))
+				return
+			}
+			time.Sleep(backoff(pubRetry))
+			continue
 		}
-		time.Sleep(3 * time.Second)
-		goto retPub
+
+		drainBody(resp)
+		break
 	}
 }
