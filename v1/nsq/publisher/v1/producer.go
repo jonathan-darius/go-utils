@@ -51,7 +51,10 @@ func pubTypeNSQD(topic string, data []byte) (err error) {
 func pubTypeHTTPS(topic string, data []byte) (err error) {
 	pubPool := connection.StartProducerPool()
 	ctx := context.Background()
-	pubPool.Acquire(ctx, 1)
+	err = pubPool.Acquire(ctx, 1)
+	if err != nil {
+		return
+	}
 	go func() {
 		defer pubPool.Release(1)
 		publishHTTPS(data, topic)
