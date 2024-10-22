@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -94,7 +93,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 	}
 
 	var copied gin.Context = *context
-	PublishLog(&copied, status, payload, msg[0])
+	go PublishLog(&copied, status, payload, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, uuid.GetUUID()}
 }
@@ -128,7 +127,7 @@ func ResponsePagination(context *gin.Context, status int, params ResponsePaginat
 	}
 
 	var copied gin.Context = *context
-	PublishLog(&copied, status, params.Data, msg)
+	go PublishLog(&copied, status, params.Data, msg)
 	context.JSON(status, response)
 	return ResponseResult{context, uuid.GetUUID()}
 }
@@ -156,7 +155,7 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 	}
 
 	var copied gin.Context = *context
-	PublishLog(&copied, status, nil, msg[0])
+	go PublishLog(&copied, status, nil, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, response.Error}
 }
@@ -197,7 +196,7 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 	log.Printf("[GOUTILS-debug] %+v\n", response)
 
 	var copied gin.Context = *context
-	PublishLog(&copied, status, response.Detail, msg[0])
+	go PublishLog(&copied, status, response.Detail, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, response.Error}
 }
@@ -238,13 +237,13 @@ func GetData(jsonBody []byte) (json.RawMessage, error) {
 }
 
 // PublishLog params
-// 	@context: *gin.Context
-// 	@status: int
-// 	@payload: interface
-// 	@msg: []string
+//	@context: *gin.Context
+//	@status: int
+//	@payload: interface
+//	@msg: []string
 //	@return error
 func PublishLog(context *gin.Context, status int, payload interface{}, msg ...string) error {
-	requestBody, err := ioutil.ReadAll(context.Request.Body)
+	requestBody, err := io.ReadAll(context.Request.Body)
 	if err != nil {
 		log.Println("read body failed " + err.Error())
 		return nil
