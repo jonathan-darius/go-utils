@@ -4,26 +4,27 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"time"
 
 	"github.com/useinsider/go-pkg/insrequester"
 
 	connection "github.com/forkyid/go-utils/v1/nsq"
+	"github.com/forkyid/go-utils/v1/util/env"
 )
 
 const (
-	PubTypeNSQD  = "nsqd"
-	PubTypeHTTPS = "https"
-	retry        = 3
+	PubTypeNSQD         = "nsqd"
+	PubTypeHTTP         = "http"
+	defaultRetry        = 3
+	defaultBackOffDelay = 2000
 )
 
 func Publish(data []byte) (err error) {
-	publishType := os.Getenv("NSQD_PUB_TYPE")
-	topic := os.Getenv("NSQD_TOPIC")
+	publishType := env.GetStr("NSQD_PUB_TYPE", PubTypeNSQD)
+	topic := env.GetStr("NSQD_TOPIC")
 
 	switch publishType {
-	case PubTypeHTTPS:
+	case PubTypeHTTP:
 		err = pubTypeHTTPS(topic, data)
 	default:
 		err = pubTypeNSQD(topic, data)
@@ -47,11 +48,11 @@ func pubTypeNSQD(topic string, data []byte) (err error) {
 }
 
 func pubTypeHTTPS(topic string, data []byte) (err error) {
-	host := fmt.Sprintf("%s/pub?topic=%s", os.Getenv("NSQD_HOST"), topic)
+	host := fmt.Sprintf("%s/pub?topic=%s", env.GetStr("NSQD_HOST"), topic)
 	requester := insrequester.NewRequester().
 		WithRetry(insrequester.RetryConfig{
-			WaitBase: 2 * time.Second,
-			Times:    retry,
+			WaitBase: time.Duration(env.GetInt("NSQD_BACKOFF_DELAY", defaultBackOffDelay)) * time.Millisecond,
+			Times:    env.GetInt("NSQD_RETRY_LIMIT", defaultRetry),
 		}).Load()
 	resp, err := requester.Post(insrequester.RequestEntity{
 		Endpoint: host,
