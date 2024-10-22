@@ -17,6 +17,7 @@ const (
 	PubTypeHTTP         = "http"
 	defaultRetry        = 3
 	defaultBackOffDelay = 2000
+	defaultTimeOut      = 5000
 )
 
 func Publish(data []byte) (err error) {
@@ -53,7 +54,7 @@ func pubTypeHTTPS(topic string, data []byte) (err error) {
 		WithRetry(insrequester.RetryConfig{
 			WaitBase: time.Duration(env.GetInt("NSQD_BACKOFF_DELAY", defaultBackOffDelay)) * time.Millisecond,
 			Times:    env.GetInt("NSQD_RETRY_LIMIT", defaultRetry),
-		}).Load()
+		}).WithTimeout(time.Duration(env.GetInt("NSQD_TIMEOUT", defaultTimeOut)) * time.Millisecond).Load()
 	resp, err := requester.Post(insrequester.RequestEntity{
 		Endpoint: host,
 		Body:     data,
