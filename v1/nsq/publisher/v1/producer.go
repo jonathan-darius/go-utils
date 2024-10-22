@@ -28,7 +28,7 @@ func Publish(data []byte) (err error) {
 	default:
 		err = pubTypeNSQD(topic, data)
 	}
-	return err
+	return
 }
 
 func pubTypeNSQD(topic string, data []byte) (err error) {
@@ -59,6 +59,7 @@ func pubTypeHTTPS(topic string, data []byte) (err error) {
 	})
 	if err != nil {
 		log.Printf("[ERROR] [NSQD] [%s] [%s] %v \n", host, err.Error(), string(data))
+		return
 	}
 	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
