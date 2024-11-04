@@ -9,7 +9,7 @@ require (
 	github.com/go-playground/validator/v10 v10.4.1
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/google/uuid v1.3.1
-	github.com/nsqio/go-nsq v1.0.8
+	github.com/nsqio/go-nsq v1.1.0
 	github.com/olivere/elastic/v7 v7.0.22
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1

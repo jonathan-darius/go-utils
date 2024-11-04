@@ -93,7 +93,7 @@ func ResponseData(context *gin.Context, status int, payload interface{}, msg ...
 	}
 
 	var copied gin.Context = *context
-	go PublishLog(&copied, status, payload, msg[0])
+	PublishLog(&copied, status, payload, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, uuid.GetUUID()}
 }
@@ -127,7 +127,7 @@ func ResponsePagination(context *gin.Context, status int, params ResponsePaginat
 	}
 
 	var copied gin.Context = *context
-	go PublishLog(&copied, status, params.Data, msg)
+	PublishLog(&copied, status, params.Data, msg)
 	context.JSON(status, response)
 	return ResponseResult{context, uuid.GetUUID()}
 }
@@ -155,7 +155,7 @@ func ResponseMessage(context *gin.Context, status int, msg ...string) ResponseRe
 	}
 
 	var copied gin.Context = *context
-	go PublishLog(&copied, status, nil, msg[0])
+	PublishLog(&copied, status, nil, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, response.Error}
 }
@@ -196,7 +196,7 @@ func ResponseError(context *gin.Context, status int, detail interface{}, msg ...
 	log.Printf("[GOUTILS-debug] %+v\n", response)
 
 	var copied gin.Context = *context
-	go PublishLog(&copied, status, response.Detail, msg[0])
+	PublishLog(&copied, status, response.Detail, msg[0])
 	context.JSON(status, response)
 	return ResponseResult{context, response.Error}
 }

@@ -26,7 +26,7 @@ func Publish(data []byte) (err error) {
 
 	switch publishType {
 	case PubTypeHTTP:
-		err = pubTypeHTTPS(topic, data)
+		go pubTypeHTTPS(topic, data)
 	default:
 		err = pubTypeNSQD(topic, data)
 	}
