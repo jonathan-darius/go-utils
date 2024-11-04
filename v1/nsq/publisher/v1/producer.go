@@ -26,7 +26,11 @@ func Publish(data []byte) (err error) {
 
 	switch publishType {
 	case PubTypeHTTP:
-		go pubTypeHTTPS(topic, data)
+		go func() {
+			if err := pubTypeHTTPS(topic, data); err != nil {
+				log.Printf("[ERROR] Failed async publish: %v", err)
+			}
+		}()
 	default:
 		err = pubTypeNSQD(topic, data)
 	}
@@ -55,15 +59,19 @@ func pubTypeHTTPS(topic string, data []byte) (err error) {
 			WaitBase: time.Duration(env.GetInt("NSQD_BACKOFF_DELAY", defaultBackOffDelay)) * time.Millisecond,
 			Times:    env.GetInt("NSQD_RETRY_LIMIT", defaultRetry),
 		}).WithTimeout(time.Duration(env.GetInt("NSQD_TIMEOUT", defaultTimeOut)) * time.Millisecond).Load()
-	resp, err := requester.Post(insrequester.RequestEntity{
-		Endpoint: host,
-		Body:     data,
-	})
-	if err != nil {
-		log.Printf("[ERROR] [NSQD] [%s] [%s] %v \n", host, err.Error(), string(data))
-		return
-	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+
+	go func() {
+		resp, err := requester.Post(insrequester.RequestEntity{
+			Endpoint: host,
+			Body:     data,
+		})
+		if err != nil {
+			log.Printf("[ERROR] [NSQD] [%s] [%s] %v \n", host, err.Error(), string(data))
+			return
+		}
+		defer io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
+
 	return
 }
