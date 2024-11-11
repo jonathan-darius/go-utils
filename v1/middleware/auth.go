@@ -18,6 +18,7 @@ import (
 	"github.com/forkyid/go-utils/v1/util/age"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
+	"github.com/olivere/elastic/v7"
 	"github.com/pkg/errors"
 )
 
@@ -46,7 +47,7 @@ type MemberStatus struct {
 	SuspendEnd *time.Time `json:"suspend_end,omitempty"`
 }
 
-func GetStatus(ctx *gin.Context, memberID int) (status MemberStatus, err error) {
+func GetStatus(ctx *gin.Context, es *elastic.Client, memberID int) (status MemberStatus, err error) {
 	isAlive := cache.IsCacheConnected()
 	if !isAlive {
 		logger.Warnf("redis", ErrConnectionFailed)
@@ -56,7 +57,6 @@ func GetStatus(ctx *gin.Context, memberID int) (status MemberStatus, err error) 
 		ID: aes.Encrypt(memberID),
 	})
 
-	// TODO: update suspension checking
 	if isAlive {
 		err = cache.GetUnmarshal(statusKey, &status)
 		if err == nil {
@@ -97,15 +97,15 @@ func tokenBasicAuth(username, password string) string {
 func checkAuthToken(bearerToken string) (resp rest.Response, err error) {
 	bearerToken = strings.Replace(bearerToken, "Bearer ", "", -1)
 
-	oauthUsername := os.Getenv("OAUTH2_SERVER_BASIC_AUTH_USERNAME") // TODO: update env naming to `BASIC_AUTH_OAUTH2_SERVER_USERNAME`
-	oauthPassword := os.Getenv("OAUTH2_SERVER_BASIC_AUTH_PASSWORD") // TODO: update env naming to `BASIC_AUTH_OAUTH2_SERVER_PASSWORD`
+	oauthUsername := os.Getenv("OAUTH2_SERVER_BASIC_AUTH_USERNAME")
+	oauthPassword := os.Getenv("OAUTH2_SERVER_BASIC_AUTH_PASSWORD")
 	basicAuth := tokenBasicAuth(oauthUsername, oauthPassword)
 
 	payload := map[string]string{"access_token": bearerToken}
 	payloadJson, _ := json.Marshal(payload)
 
 	req := rest.Request{
-		URL:    fmt.Sprintf("%v/oauth/v1/resource/check/token", os.Getenv("API_ORIGIN_URL")), // TODO: update path using internal LB
+		URL:    fmt.Sprintf("%v/oauth/v1/resource/check/token", os.Getenv("API_ORIGIN_URL")),
 		Method: http.MethodPost,
 		Headers: map[string]string{
 			"Authorization": "Basic " + basicAuth},
@@ -120,14 +120,6 @@ func checkAuthToken(bearerToken string) (resp rest.Response, err error) {
 }
 
 func (mid *Middleware) validate(auth string, ctx *gin.Context) {
-	id, err := jwt.ExtractID(auth)
-	if err != nil {
-		rest.ResponseMessage(ctx, http.StatusUnauthorized).
-			Log("extract id", err)
-		ctx.Abort()
-		return
-	}
-
 	resp, err := checkAuthToken(auth)
 	if err != nil {
 		rest.ResponseMessage(ctx, http.StatusInternalServerError).Log("check auth token", err)
@@ -141,7 +133,9 @@ func (mid *Middleware) validate(auth string, ctx *gin.Context) {
 		return
 	}
 
-	status, err := GetStatus(ctx, id)
+	id, _ := jwt.ExtractID(auth)
+
+	status, err := GetStatus(ctx, mid.elastic, id)
 	if err != nil {
 		rest.ResponseMessage(ctx, http.StatusInternalServerError).Log("get status", err)
 		ctx.Abort()
@@ -282,6 +276,9 @@ func getAccStatus(ctx *gin.Context) (isOnHold bool, err error) {
 	return
 }
 
+// CheckWaitingStatus params
+//
+//	@ctx: *gin.Context
 func (m *Middleware) CheckWaitingStatus(ctx *gin.Context) {
 	if err := m.elastic.WaitForYellowStatus("1s"); err != nil {
 		logger.Errorf(ctx, "wait for yellow status", err)
