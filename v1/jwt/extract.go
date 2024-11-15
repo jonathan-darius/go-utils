@@ -12,13 +12,11 @@ import (
 )
 
 // extractClaims extracts claims from JWT, returns claims as map
-func extractClaims(tokenStr string) (jwt.MapClaims, error) {
+func extractClaims(tokenStr string, skipClaimsValidation ...bool) (jwt.MapClaims, error) {
 	hmacSecretString := os.Getenv("JWT_ACCESS_SIGNATURE_KEY")
 	hmacSecret := []byte(hmacSecretString)
-
 	parser := new(jwt.Parser)
-	parser.SkipClaimsValidation = true
-
+	parser.SkipClaimsValidation = skipClaimsValidation[0]
 	token, err := parser.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		// check token signing method etc
 		return hmacSecret, nil
@@ -38,9 +36,9 @@ func extractClaims(tokenStr string) (jwt.MapClaims, error) {
 }
 
 // ExtractID extracts only the id from JWT
-func ExtractID(ah string) (int, error) {
+func ExtractID(ah string, skipClaimsValidation ...bool) (int, error) {
 	ts := strings.Replace(ah, "Bearer ", "", -1)
-	claimsMap, err := extractClaims(ts)
+	claimsMap, err := extractClaims(ts, append(skipClaimsValidation, true)[0])
 	if err != nil {
 		return -1, errors.Wrap(err, "extract claims")
 	}
@@ -54,11 +52,10 @@ func ExtractID(ah string) (int, error) {
 }
 
 // ExtractClient extracts only the id from JWT
-func ExtractClient(ah string) (*AccessClaims, error) {
+func ExtractClient(ah string, skipClaimsValidation ...bool) (*AccessClaims, error) {
 	ts := strings.Replace(ah, "Bearer ", "", -1)
 	claims := AccessClaims{}
-
-	claimsMap, err := extractClaims(ts)
+	claimsMap, err := extractClaims(ts, append(skipClaimsValidation, true)[0])
 	if err != nil {
 		return nil, errors.Wrap(err, "extract claims")
 	}
